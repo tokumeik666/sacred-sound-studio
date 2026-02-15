@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sacred Sound Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@200;300;500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+
+  body{font-family:'Noto Serif JP',serif;background:#04040a;color:#d0c8e0;min-height:100vh;overflow-x:hidden}
+
+  canvas#bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+  canvas#particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none}
+
+  .app{position:relative;z-index:2;max-width:960px;margin:0 auto;padding:24px 16px 60px}
+
+  .header{text-align:center;padding:16px 0 8px}
+  .om{font-size:2.6em;display:block;margin-bottom:2px;
+    background:linear-gradient(180deg,rgba(255,215,100,0.85),rgba(255,180,60,0.65));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    filter:drop-shadow(0 0 18px rgba(255,200,50,0.25));animation:omG 5s ease-in-out infinite alternate}
+  @keyframes omG{0%{filter:drop-shadow(0 0 12px rgba(255,200,50,0.2))}100%{filter:drop-shadow(0 0 28px rgba(255,200,50,0.4))}}
+  h1{font-size:1.5em;font-weight:200;letter-spacing:.3em;
+    background:linear-gradient(90deg,#c0a0f0,#ffd080,#c0a0f0);background-size:200% 100%;
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    animation:shimmer 8s ease-in-out infinite}
+  @keyframes shimmer{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  .sub{font-size:.6em;color:rgba(160,140,200,.4);letter-spacing:.5em;margin-top:4px;font-weight:200}
+
+  .vis-wrap{text-align:center;margin:16px 0 10px;position:relative}
+  canvas#vis{width:240px;height:240px;border-radius:50%;display:block;margin:0 auto}
+
+  .affirmation{text-align:center;font-size:.75em;font-weight:200;color:rgba(255,215,100,.35);
+    letter-spacing:.12em;margin:8px 0 16px;min-height:1.5em;transition:opacity 1.5s;line-height:1.8}
+
+  .section{background:linear-gradient(135deg,rgba(12,8,30,.65),rgba(16,12,38,.65));
+    border:1px solid rgba(140,110,220,.1);border-radius:18px;padding:22px;margin-bottom:16px;
+    backdrop-filter:blur(8px);position:relative;overflow:hidden}
+  .section::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,200,80,.2),transparent)}
+  .section-title{font-size:.9em;font-weight:500;margin-bottom:14px;
+    color:rgba(255,215,100,.75);letter-spacing:.2em;text-align:center}
+  .section-title::after{content:'';display:block;width:50px;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,200,80,.3),transparent);margin:8px auto 0}
+
+  .tabs{display:flex;justify-content:center;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{background:rgba(20,15,40,.5);border:1px solid rgba(120,90,200,.1);color:rgba(200,180,240,.5);
+    padding:7px 18px;border-radius:20px;cursor:pointer;font-size:.75em;font-family:inherit;
+    transition:all .3s;letter-spacing:.1em}
+  .tab:hover{border-color:rgba(255,200,80,.25);color:#d0c8e0}
+  .tab.active{border-color:rgba(255,200,80,.35);color:rgba(255,215,100,.8);
+    background:linear-gradient(135deg,rgba(50,30,100,.3),rgba(30,25,60,.35))}
+
+  .preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .preset-card{background:rgba(15,10,30,.5);border:1px solid rgba(120,90,200,.1);border-radius:12px;
+    padding:12px 8px;cursor:pointer;transition:all .4s;text-align:center;font-family:inherit;color:#d0c8e0}
+  .preset-card:hover{border-color:rgba(255,200,80,.3);transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(60,40,120,.15)}
+  .preset-card.active{border-color:rgba(255,200,80,.4);
+    background:linear-gradient(135deg,rgba(50,30,100,.35),rgba(30,25,60,.4));
+    box-shadow:0 0 20px rgba(80,50,160,.12)}
+  .pc-icon{font-size:1.4em;display:block;margin-bottom:3px}
+  .pc-name{font-size:.8em;font-weight:300}
+  .pc-desc{font-size:.5em;color:rgba(160,140,200,.4);margin-top:2px;font-weight:200}
+
+  .ctrl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .ctrl-item{display:flex;align-items:center;gap:8px}
+  .ctrl-item label{font-size:.7em;color:rgba(180,160,220,.45);min-width:80px;font-weight:200;letter-spacing:.05em}
+  .ctrl-item span{font-size:.65em;color:rgba(180,160,220,.35);min-width:45px;text-align:right}
+
+  input[type="range"]{-webkit-appearance:none;flex:1;height:2px;
+    background:linear-gradient(90deg,rgba(80,50,160,.25),rgba(255,200,80,.15));border-radius:1px;outline:none}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+    background:radial-gradient(circle,rgba(255,215,0,.8),rgba(200,160,60,.6));border-radius:50%;
+    cursor:pointer;border:none;box-shadow:0 0 6px rgba(255,215,0,.3)}
+
+  .toggle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .toggle-item{display:flex;align-items:center;gap:8px;padding:6px 0}
+  .toggle-sw{width:40px;height:20px;background:rgba(30,20,60,.5);border-radius:10px;position:relative;
+    cursor:pointer;border:1px solid rgba(120,90,200,.12);transition:all .3s;flex-shrink:0}
+  .toggle-sw.on{background:linear-gradient(90deg,rgba(160,100,255,.35),rgba(255,200,80,.25));
+    border-color:rgba(255,200,80,.35)}
+  .toggle-sw::after{content:'';position:absolute;width:14px;height:14px;
+    background:rgba(180,160,220,.7);border-radius:50%;top:2px;left:2px;transition:all .3s}
+  .toggle-sw.on::after{left:22px;background:#ffd700;box-shadow:0 0 8px rgba(255,215,0,.4)}
+  .toggle-label{font-size:.75em;font-weight:200}
+
+  .master-row{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+  .play-btn{width:76px;height:76px;border-radius:50%;border:1.5px solid rgba(255,200,80,.2);
+    background:radial-gradient(circle at 40% 35%,rgba(40,25,80,.5),rgba(15,10,30,.7));
+    color:rgba(255,215,0,.8);font-size:1.8em;cursor:pointer;transition:all .5s;
+    display:inline-flex;align-items:center;justify-content:center;position:relative}
+  .play-btn::before{content:'';position:absolute;inset:-5px;border-radius:50%;
+    border:1px solid rgba(255,200,80,.08);animation:ringR 6s linear infinite}
+  @keyframes ringR{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+  .play-btn:hover{box-shadow:0 0 40px rgba(255,200,80,.15);transform:scale(1.05)}
+  .play-btn.playing{border-color:rgba(255,200,80,.4);animation:glow 4s ease-in-out infinite}
+  @keyframes glow{0%,100%{box-shadow:0 0 15px rgba(255,200,80,.1)}50%{box-shadow:0 0 35px rgba(255,200,80,.25)}}
+  .vol-ctrl{display:flex;align-items:center;gap:8px;min-width:160px}
+  .vol-ctrl label{font-size:.7em;color:rgba(180,160,220,.4);font-weight:200}
+
+  .timer-row{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+  .timer-btn{background:rgba(20,15,40,.4);border:1px solid rgba(120,90,200,.1);
+    color:rgba(180,160,220,.5);padding:4px 12px;border-radius:16px;cursor:pointer;
+    font-size:.7em;font-family:inherit;transition:all .3s}
+  .timer-btn:hover{border-color:rgba(255,200,80,.25)}
+  .timer-btn.active{border-color:rgba(255,200,80,.35);color:rgba(255,215,100,.7);
+    background:linear-gradient(135deg,rgba(50,30,100,.25),rgba(255,200,80,.1))}
+  .timer-display{font-size:1em;color:rgba(255,215,100,.6);min-width:50px;text-align:center;font-variant-numeric:tabular-nums}
+  .timer-label{font-size:.7em;color:rgba(180,160,220,.35)}
+
+  .rec-row{display:flex;align-items:center;justify-content:center;gap:10px}
+  .rec-btn{background:rgba(50,15,25,.3);border:1px solid rgba(180,70,90,.15);
+    color:rgba(220,150,160,.55);padding:4px 14px;border-radius:14px;cursor:pointer;
+    font-size:.7em;font-family:inherit;transition:all .3s}
+  .rec-btn.recording{background:rgba(180,40,60,.3);border-color:rgba(255,90,120,.4);
+    color:rgba(255,130,150,.8);animation:recP 1.5s ease-in-out infinite}
+  @keyframes recP{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(180,40,60,.2)}}
+  .rec-st{font-size:.6em;color:rgba(140,120,170,.3);font-weight:200}
+
+  .voice-select{background:rgba(20,15,40,.5);border:1px solid rgba(120,90,200,.12);
+    color:rgba(200,180,240,.6);padding:5px 10px;border-radius:8px;font-size:.7em;
+    font-family:inherit;outline:none}
+  .voice-select option{background:#15102a;color:#d0c8e0}
+
+  /* Auto Generate Button */
+  .gen-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .gen-btn{background:linear-gradient(135deg,rgba(60,30,120,.4),rgba(40,20,80,.5));
+    border:1px solid rgba(180,120,255,.2);color:rgba(200,170,255,.7);
+    padding:10px 28px;border-radius:22px;cursor:pointer;font-size:.85em;font-family:inherit;
+    transition:all .4s;letter-spacing:.15em;position:relative;overflow:hidden}
+  .gen-btn:hover{border-color:rgba(255,200,80,.35);color:rgba(255,215,100,.85);
+    box-shadow:0 0 30px rgba(120,60,200,.2);transform:scale(1.03)}
+  .gen-btn::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(45deg,transparent 40%,rgba(255,255,255,.03) 50%,transparent 60%);
+    background-size:200% 200%;animation:shineBtn 4s ease-in-out infinite}
+  @keyframes shineBtn{0%,100%{background-position:200% 0}50%{background-position:-200% 0}}
+  .gen-mood{font-size:.65em;color:rgba(180,160,220,.4);text-align:center;min-height:1.4em;margin-top:4px}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="particles"></canvas>
+
+<div class="app">
+  <div class="header">
+    <span class="om">&#x0950;</span>
+    <h1>Sacred Sound Studio</h1>
+    <p class="sub">神聖なるサウンドスタジオ</p>
+  </div>
+
+  <div class="vis-wrap"><canvas id="vis"></canvas></div>
+  <div class="affirmation" id="affirmation"></div>
+
+  <!-- ===== MASTER CONTROLS ===== -->
+  <div class="section">
+    <div class="master-row">
+      <div class="vol-ctrl">
+        <label>主音量</label>
+        <input type="range" min="0" max="100" value="60" id="masterVol" oninput="setMasterVol()">
+      </div>
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">&#9654;</button>
+    </div>
+
+    <!-- Auto Generate -->
+    <div class="gen-row">
+      <button class="gen-btn" onclick="autoGenerate()">&#x2728; 自動生成</button>
+    </div>
+    <div class="gen-mood" id="genMood"></div>
+
+    <div class="timer-row">
+      <span class="timer-label">タイマー</span>
+      <button class="timer-btn" onclick="setTimer(0)">OFF</button>
+      <button class="timer-btn" onclick="setTimer(10)">10分</button>
+      <button class="timer-btn" onclick="setTimer(30)">30分</button>
+      <button class="timer-btn" onclick="setTimer(60)">60分</button>
+      <span class="timer-display" id="timerDisp">--:--</span>
+    </div>
+    <div class="rec-row">
+      <button class="rec-btn" id="recBtn" onclick="toggleRec()">&#x25CF; 録音</button>
+      <span class="rec-st" id="recSt">録音してダウンロード</span>
+    </div>
+  </div>
+
+  <!-- ===== PRESETS ===== -->
+  <div class="section">
+    <div class="section-title">プリセット</div>
+    <div class="tabs" id="presetTabs">
+      <button class="tab active" onclick="showPresetTab('relax')">リラックス</button>
+      <button class="tab" onclick="showPresetTab('awaken')">覚醒</button>
+      <button class="tab" onclick="showPresetTab('uplift')">気分UP</button>
+      <button class="tab" onclick="showPresetTab('heal')">癒し</button>
+      <button class="tab" onclick="showPresetTab('sleep')">睡眠</button>
+      <button class="tab" onclick="showPresetTab('nature')">自然</button>
+      <button class="tab" onclick="showPresetTab('money')">金運</button>
+    </div>
+    <div class="preset-grid" id="presetGrid"></div>
+  </div>
+
+  <!-- ===== CUSTOM CONTROLS ===== -->
+  <div class="section">
+    <div class="section-title">カスタム調整</div>
+    <div class="ctrl-grid">
+      <div class="ctrl-item">
+        <label>テンポ(BPM)</label>
+        <input type="range" min="25" max="100" value="60" step="1" id="ctrlBPM" oninput="updateCtrl()">
+        <span id="valBPM">60</span>
+      </div>
+      <div class="ctrl-item">
+        <label>明るさ</label>
+        <input type="range" min="200" max="2000" value="800" id="ctrlBright" oninput="updateCtrl()">
+        <span id="valBright">800</span>
+      </div>
+      <div class="ctrl-item">
+        <label>リバーブ</label>
+        <input type="range" min="0" max="100" value="65" id="ctrlReverb" oninput="updateCtrl()">
+        <span id="valReverb">65%</span>
+      </div>
+      <div class="ctrl-item">
+        <label>ディレイ</label>
+        <input type="range" min="0" max="100" value="35" id="ctrlDelay" oninput="updateCtrl()">
+        <span id="valDelay">35%</span>
+      </div>
+      <div class="ctrl-item">
+        <label>アルペジオ密度</label>
+        <input type="range" min="1" max="10" value="5" step="1" id="ctrlArpDensity" oninput="updateCtrl()">
+        <span id="valArpDensity">5</span>
+      </div>
+      <div class="ctrl-item">
+        <label>メロディ頻度</label>
+        <input type="range" min="0" max="100" value="50" id="ctrlMelFreq" oninput="updateCtrl()">
+        <span id="valMelFreq">50%</span>
+      </div>
+      <div class="ctrl-item">
+        <label>パッド厚み</label>
+        <input type="range" min="0" max="100" value="60" id="ctrlPadThick" oninput="updateCtrl()">
+        <span id="valPadThick">60%</span>
+      </div>
+      <div class="ctrl-item">
+        <label>キー</label>
+        <select class="voice-select" id="ctrlKey" onchange="updateCtrl()">
+          <option value="60">C</option><option value="62">D</option><option value="64">E</option>
+          <option value="65">F</option><option value="67">G</option><option value="69">A</option><option value="71">B</option>
+        </select>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SOUND LAYERS ===== -->
+  <div class="section">
+    <div class="section-title">サウンドレイヤー</div>
+    <div class="toggle-grid">
+      <div class="toggle-item"><div class="toggle-sw" id="tog-piano" onclick="togLayer('piano')"></div><span class="toggle-label">&#x1F3B9; ピアノ</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-arpeggio" onclick="togLayer('arpeggio')"></div><span class="toggle-label">&#x1F3B5; アルペジオ</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-melody" onclick="togLayer('melody')"></div><span class="toggle-label">&#x1F3B6; メロディ</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-pad" onclick="togLayer('pad')"></div><span class="toggle-label">&#x1F30C; パッド</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-bass" onclick="togLayer('bass')"></div><span class="toggle-label">&#x1F50A; ベース</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-bowl" onclick="togLayer('bowl')"></div><span class="toggle-label">&#x1F514; シンギングボウル</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-chime" onclick="togLayer('chime')"></div><span class="toggle-label">&#x2728; チャイム</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-rain" onclick="togLayer('rain')"></div><span class="toggle-label">&#x1F327; 雨音</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-wind" onclick="togLayer('wind')"></div><span class="toggle-label">&#x1F343; 風音</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-ocean" onclick="togLayer('ocean')"></div><span class="toggle-label">&#x1F30A; 海の波</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-coin" onclick="togLayer('coin')"></div><span class="toggle-label">&#x1FA99; コインチャイム</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-solfeggio" onclick="togLayer('solfeggio')"></div><span class="toggle-label">&#x1F4A0; ソルフェジオ</span></div>
+      <div class="toggle-item"><div class="toggle-sw" id="tog-binaural" onclick="togLayer('binaural')"></div><span class="toggle-label">&#x1F3A7; バイノーラル</span></div>
+    </div>
+
+    <div class="section-title" style="margin-top:14px;font-size:.75em">レイヤー間隔（秒）</div>
+    <div class="ctrl-grid" style="margin-top:6px">
+      <div class="ctrl-item">
+        <label>&#x1F3B9; ピアノ</label>
+        <input type="range" min="2" max="30" value="4" step="1" id="ctrlPianoInt" oninput="updateIntervals()">
+        <span id="valPianoInt">4秒</span>
+      </div>
+      <div class="ctrl-item">
+        <label>&#x1F3B5; アルペジオ</label>
+        <input type="range" min="1" max="20" value="2" step="1" id="ctrlArpInt" oninput="updateIntervals()">
+        <span id="valArpInt">2秒</span>
+      </div>
+      <div class="ctrl-item">
+        <label>&#x1F3B6; メロディ</label>
+        <input type="range" min="3" max="60" value="12" step="1" id="ctrlMelInt" oninput="updateIntervals()">
+        <span id="valMelInt">12秒</span>
+      </div>
+      <div class="ctrl-item">
+        <label>&#x1F514; ボウル</label>
+        <input type="range" min="5" max="60" value="15" step="1" id="ctrlBowlInt" oninput="updateIntervals()">
+        <span id="valBowlInt">15秒</span>
+      </div>
+      <div class="ctrl-item">
+        <label>&#x2728; チャイム</label>
+        <input type="range" min="3" max="30" value="8" step="1" id="ctrlChimeInt" oninput="updateIntervals()">
+        <span id="valChimeInt">8秒</span>
+      </div>
+      <div class="ctrl-item">
+        <label>&#x1FA99; コイン</label>
+        <input type="range" min="2" max="20" value="6" step="1" id="ctrlCoinInt" oninput="updateIntervals()">
+        <span id="valCoinInt">6秒</span>
+      </div>
+    </div>
+    <div class="ctrl-grid" style="margin-top:10px">
+      <div class="ctrl-item">
+        <label>ソルフェジオ</label>
+        <select class="voice-select" id="solfreqSel" onchange="updateSolfreq()">
+          <option value="174">174Hz - 痛みの解放</option>
+          <option value="285">285Hz - 組織の修復</option>
+          <option value="396">396Hz - 恐れの解放</option>
+          <option value="417">417Hz - 変容</option>
+          <option value="528" selected>528Hz - 奇跡</option>
+          <option value="639">639Hz - 繋がり</option>
+          <option value="741">741Hz - 覚醒</option>
+          <option value="852">852Hz - 直感</option>
+          <option value="888">888Hz - 豊かさ・金運</option>
+          <option value="963">963Hz - 神性</option>
+        </select>
+      </div>
+      <div class="ctrl-item">
+        <label>バイノーラル</label>
+        <input type="range" min="1" max="40" value="7" step="0.5" id="binFreq" oninput="updateBinFreq()">
+        <span id="valBinFreq">7.0Hz</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CHORD PROGRESSIONS LIBRARY (Jason Stephenson style)
+// =============================================
+const PROG_LIB = [
+  // Dreamy I - vi - IV - V
+  [[0,4,7,12],[9,12,16,21],[5,9,12,17],[7,11,14,19]],
+  // Ethereal I - III - vi - IV
+  [[0,4,7,12],[4,8,11,16],[9,12,16,21],[5,9,12,17]],
+  // Peaceful I - IV - vi - V
+  [[0,4,7,12],[5,9,12,17],[9,12,16,21],[7,11,14,19]],
+  // Emotional vi - IV - I - V
+  [[9,12,16,21],[5,9,12,17],[0,4,7,12],[7,11,14,19]],
+  // Floating I - bVII - IV - I
+  [[0,4,7,12],[-2,2,5,10],[5,9,12,17],[0,4,7,12]],
+  // Cinematic I - V - vi - IV
+  [[0,4,7,12],[7,11,14,19],[9,12,16,21],[5,9,12,17]],
+  // Ambient I - ii - V - I
+  [[0,4,7,12],[2,5,9,14],[7,11,14,19],[0,4,7,12]],
+  // Nostalgic I - iii - IV - V
+  [[0,4,7,12],[4,7,11,16],[5,9,12,17],[7,11,14,19]],
+  // Deep Meditation vi - bVII - I - IV
+  [[9,12,16,21],[-2,2,5,10],[0,4,7,12],[5,9,12,17]],
+  // Mystical i - bVI - bIII - bVII
+  [[0,3,7,12],[8,12,15,20],[3,7,10,15],[-2,2,5,10]],
+];
+
+// Scale patterns (intervals from root)
+const SCALES = {
+  pentatonic: [0,2,4,7,9],
+  major: [0,2,4,5,7,9,11],
+  minor: [0,2,3,5,7,8,10],
+  dorian: [0,2,3,5,7,9,10],
+  mixolydian: [0,2,4,5,7,9,10],
+  lydian: [0,2,4,6,7,9,11],
+};
+
+// Arpeggio patterns (index into chord notes)
+const ARP_PATTERNS = [
+  [0,1,2,3,2,1],         // up-down
+  [0,2,1,3,2,0],         // skip
+  [0,1,2,3],             // up
+  [3,2,1,0],             // down
+  [0,2,3,1,2,3],         // interlace
+  [0,1,3,2,0,1],         // weave
+  [0,3,1,2],             // wide
+  [0,1,2,1,2,3,2,1],     // wave
+];
+
+// =============================================
+// TONE TYPES - fundamentally different sound characters
+// warm=暖かい, bright=明るい, dark=暗い, ethereal=幻想的, powerful=力強い, crystal=透明
+// =============================================
+const TONES = {
+  warm:     {piano:[{r:1,v:1,t:'triangle'},{r:2,v:.4,t:'sine'},{r:3,v:.1,t:'sine'}], attack:.01, decay:.7, filterMul:3, padTypes:['sine','triangle'], padDetune:.003, bassVol:.08},
+  bright:   {piano:[{r:1,v:.8,t:'triangle'},{r:2,v:.5,t:'triangle'},{r:3,v:.25,t:'sine'},{r:4,v:.12,t:'sine'},{r:5,v:.05,t:'sine'}], attack:.005, decay:.5, filterMul:8, padTypes:['triangle','sawtooth'], padDetune:.002, bassVol:.05},
+  dark:     {piano:[{r:1,v:1,t:'sine'},{r:2,v:.2,t:'sine'}], attack:.02, decay:.9, filterMul:2, padTypes:['sine','sine'], padDetune:.004, bassVol:.12},
+  ethereal: {piano:[{r:1,v:.6,t:'sine'},{r:2.01,v:.3,t:'sine'},{r:3.99,v:.15,t:'sine'},{r:5.02,v:.06,t:'sine'}], attack:.008, decay:.6, filterMul:5, padTypes:['sine','triangle'], padDetune:.005, bassVol:.04},
+  powerful: {piano:[{r:1,v:1,t:'sawtooth'},{r:2,v:.5,t:'triangle'},{r:3,v:.2,t:'sine'},{r:4,v:.1,t:'sine'}], attack:.003, decay:.4, filterMul:6, padTypes:['sawtooth','triangle'], padDetune:.003, bassVol:.1},
+  crystal:  {piano:[{r:1,v:.5,t:'sine'},{r:2.76,v:.3,t:'sine'},{r:4.07,v:.15,t:'sine'},{r:5.57,v:.06,t:'sine'}], attack:.002, decay:.8, filterMul:10, padTypes:['sine','sine'], padDetune:.001, bassVol:.03},
+};
+
+// =============================================
+// PRESETS - each has tone + weight for distinct character
+// tone: warm/bright/dark/ethereal/powerful/crystal
+// weight: 20-100 (light→heavy, affects bass depth, pad volume, overall density)
+// =============================================
+const PRESETS = {
+  relax: [
+    {id:'deepRelax',icon:'&#x1F30A;',name:'深いリラクゼーション',desc:'暖かいピアノ + 雨音',
+     tone:'warm',weight:60,scale:'pentatonic',root:60,progIdx:0,bpm:55,bright:650,reverb:70,delay:40,
+     arpDensity:5,melFreq:45,padThick:65,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,rain:1}},
+    {id:'oceanCalm',icon:'&#x1F3D6;',name:'海辺の静寂',desc:'クリスタルベル + 海の波',
+     tone:'crystal',weight:40,scale:'pentatonic',root:60,progIdx:2,bpm:50,bright:550,reverb:75,delay:45,
+     arpDensity:4,melFreq:35,padThick:70,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,ocean:1,solfeggio:1},solfeggio:174},
+    {id:'hotSpring',icon:'&#x2668;',name:'温泉の癒し',desc:'ダークパッド + 暖かいメロディ',
+     tone:'dark',weight:70,scale:'major',root:65,progIdx:6,bpm:48,bright:450,reverb:68,delay:35,
+     arpDensity:3,melFreq:35,padThick:80,arpPattern:5,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,wind:1}},
+    {id:'floatingCloud',icon:'&#x2601;',name:'雲の上の浮遊感',desc:'幻想的アルペジオ + 風',
+     tone:'ethereal',weight:35,scale:'lydian',root:62,progIdx:4,bpm:42,bright:900,reverb:85,delay:55,
+     arpDensity:3,melFreq:25,padThick:45,arpPattern:7,
+     layers:{piano:1,arpeggio:1,pad:1,bass:1,wind:1,chime:1}},
+    {id:'zenGarden',icon:'&#x1FAB7;',name:'禅の庭',desc:'ミニマル + ボウル + 静寂',
+     tone:'crystal',weight:25,scale:'pentatonic',root:64,progIdx:1,bpm:38,bright:480,reverb:72,delay:42,
+     arpDensity:2,melFreq:15,padThick:30,arpPattern:3,
+     layers:{piano:1,pad:1,bowl:1}},
+    {id:'twilightCalm',icon:'&#x1F305;',name:'黄昏のひととき',desc:'暖かいパッド + 海 + 285Hz',
+     tone:'warm',weight:55,scale:'mixolydian',root:67,progIdx:7,bpm:56,bright:700,reverb:62,delay:35,
+     arpDensity:5,melFreq:55,padThick:60,arpPattern:1,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,ocean:1,solfeggio:1},solfeggio:285},
+  ],
+  awaken: [
+    {id:'consciousness',icon:'&#x1F4A0;',name:'意識の覚醒',desc:'パワフル963Hz + ベル',
+     tone:'powerful',weight:65,scale:'pentatonic',root:64,progIdx:8,bpm:72,bright:1100,reverb:60,delay:35,
+     arpDensity:6,melFreq:50,padThick:60,arpPattern:4,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,chime:1,solfeggio:1},solfeggio:963},
+    {id:'thirdEye',icon:'&#x1F441;',name:'第三の目',desc:'ダーク852Hz + シンギングボウル',
+     tone:'dark',weight:75,scale:'minor',root:57,progIdx:9,bpm:46,bright:500,reverb:82,delay:55,
+     arpDensity:3,melFreq:20,padThick:80,arpPattern:6,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,solfeggio:1},solfeggio:852},
+    {id:'kundalini',icon:'&#x1F300;',name:'クンダリーニ',desc:'パワフル + 全チャクラ + ボウル',
+     tone:'powerful',weight:80,scale:'dorian',root:60,progIdx:5,bpm:78,bright:950,reverb:55,delay:30,
+     arpDensity:7,melFreq:55,padThick:75,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,chime:1}},
+    {id:'cosmicGate',icon:'&#x1F310;',name:'宇宙の扉',desc:'幻想的963Hz + 深い空間',
+     tone:'ethereal',weight:50,scale:'minor',root:55,progIdx:9,bpm:40,bright:800,reverb:90,delay:65,
+     arpDensity:2,melFreq:15,padThick:60,arpPattern:7,
+     layers:{piano:1,arpeggio:1,pad:1,bass:1,bowl:1,chime:1,solfeggio:1},solfeggio:963},
+    {id:'morningLight',icon:'&#x1F31E;',name:'朝の目覚め',desc:'ブライト741Hz + 速いアルペジオ',
+     tone:'bright',weight:45,scale:'lydian',root:67,progIdx:0,bpm:84,bright:1500,reverb:45,delay:20,
+     arpDensity:8,melFreq:60,padThick:40,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,chime:1,solfeggio:1,binaural:1},solfeggio:741,binFreq:10},
+    {id:'astralTravel',icon:'&#x1F6F8;',name:'アストラル旅行',desc:'ダーク + シータ波 + 深いリバーブ',
+     tone:'dark',weight:85,scale:'dorian',root:57,progIdx:8,bpm:36,bright:400,reverb:92,delay:68,
+     arpDensity:2,melFreq:12,padThick:90,arpPattern:3,
+     layers:{piano:1,pad:1,bass:1,bowl:1,binaural:1},binFreq:5},
+  ],
+  uplift: [
+    {id:'manifest',icon:'&#x2728;',name:'引き寄せ・願望実現',desc:'パワフル528Hz + ピアノ',
+     tone:'powerful',weight:60,scale:'major',root:65,progIdx:5,bpm:76,bright:1000,reverb:50,delay:22,
+     arpDensity:6,melFreq:55,padThick:55,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,solfeggio:1},solfeggio:528},
+    {id:'positive',icon:'&#x2600;',name:'ポジティブエナジー',desc:'ブライト639Hz + 速いメロディ',
+     tone:'bright',weight:45,scale:'major',root:67,progIdx:0,bpm:88,bright:1400,reverb:40,delay:18,
+     arpDensity:7,melFreq:65,padThick:40,arpPattern:4,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,chime:1,solfeggio:1},solfeggio:639},
+    {id:'focus',icon:'&#x26A1;',name:'超集中モード',desc:'クリスタル741Hz + アルファ波',
+     tone:'crystal',weight:30,scale:'pentatonic',root:64,progIdx:6,bpm:70,bright:900,reverb:45,delay:18,
+     arpDensity:4,melFreq:35,padThick:35,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,binaural:1},binFreq:12},
+    {id:'abundance',icon:'&#x1F4B0;',name:'豊かさの波動',desc:'パワフル417Hz + ブライト',
+     tone:'powerful',weight:65,scale:'major',root:69,progIdx:7,bpm:80,bright:1200,reverb:48,delay:22,
+     arpDensity:7,melFreq:55,padThick:55,arpPattern:5,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,chime:1,solfeggio:1},solfeggio:417},
+    {id:'innerJoy',icon:'&#x1F338;',name:'内なる喜び',desc:'クリスタル + 軽やかなベル',
+     tone:'crystal',weight:30,scale:'lydian',root:71,progIdx:1,bpm:74,bright:1600,reverb:50,delay:25,
+     arpDensity:5,melFreq:55,padThick:35,arpPattern:1,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,chime:1,solfeggio:1},solfeggio:639},
+    {id:'confidence',icon:'&#x1F525;',name:'自信と勇気',desc:'パワフル417Hz + 重厚ベース',
+     tone:'powerful',weight:85,scale:'mixolydian',root:62,progIdx:3,bpm:82,bright:1000,reverb:42,delay:18,
+     arpDensity:7,melFreq:60,padThick:70,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,solfeggio:1},solfeggio:417},
+  ],
+  heal: [
+    {id:'energyHeal',icon:'&#x1F49C;',name:'エネルギーヒーリング',desc:'暖かい528Hz + パッド + ボウル',
+     tone:'warm',weight:60,scale:'pentatonic',root:60,progIdx:2,bpm:54,bright:700,reverb:65,delay:38,
+     arpDensity:5,melFreq:40,padThick:70,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,solfeggio:1},solfeggio:528},
+    {id:'heartChakra',icon:'&#x1F49A;',name:'ハートチャクラ',desc:'暖かい639Hz + 雨 + パッド',
+     tone:'warm',weight:55,scale:'major',root:65,progIdx:0,bpm:56,bright:800,reverb:60,delay:32,
+     arpDensity:5,melFreq:45,padThick:65,arpPattern:5,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,rain:1,solfeggio:1},solfeggio:639},
+    {id:'deepMed',icon:'&#x1F9D8;',name:'深い瞑想',desc:'ダーク + シータ波 + 重厚パッド',
+     tone:'dark',weight:80,scale:'pentatonic',root:60,progIdx:8,bpm:42,bright:400,reverb:78,delay:50,
+     arpDensity:3,melFreq:20,padThick:85,arpPattern:7,
+     layers:{piano:1,melody:1,pad:1,bass:1,bowl:1,binaural:1},binFreq:6},
+    {id:'bodyRepair',icon:'&#x1FA79;',name:'身体の修復',desc:'幻想的285Hz + 雨音',
+     tone:'ethereal',weight:50,scale:'pentatonic',root:60,progIdx:6,bpm:48,bright:680,reverb:72,delay:42,
+     arpDensity:4,melFreq:35,padThick:60,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,rain:1,bowl:1,solfeggio:1},solfeggio:285},
+    {id:'soulClean',icon:'&#x1F52E;',name:'魂の浄化',desc:'パワフル417Hz + ボウル + 風',
+     tone:'powerful',weight:70,scale:'dorian',root:57,progIdx:9,bpm:58,bright:700,reverb:65,delay:40,
+     arpDensity:5,melFreq:35,padThick:72,arpPattern:6,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,bowl:1,wind:1,solfeggio:1},solfeggio:417},
+    {id:'lightBody',icon:'&#x1F31F;',name:'ライトボディ活性化',desc:'クリスタル963Hz + チャイム',
+     tone:'crystal',weight:30,scale:'lydian',root:69,progIdx:1,bpm:64,bright:1400,reverb:68,delay:45,
+     arpDensity:4,melFreq:40,padThick:40,arpPattern:4,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,chime:1,solfeggio:1},solfeggio:963},
+  ],
+  sleep: [
+    {id:'deepSleep',icon:'&#x1F319;',name:'深い眠り',desc:'ダーク + デルタ波 + 風',
+     tone:'dark',weight:75,scale:'pentatonic',root:60,progIdx:0,bpm:38,bright:380,reverb:78,delay:50,
+     arpDensity:2,melFreq:20,padThick:80,arpPattern:3,
+     layers:{piano:1,melody:1,pad:1,bass:1,wind:1,binaural:1},binFreq:2},
+    {id:'nightSky',icon:'&#x1F30C;',name:'星空の下で',desc:'幻想的963Hz + 深いベース',
+     tone:'ethereal',weight:60,scale:'minor',root:57,progIdx:9,bpm:36,bright:500,reverb:88,delay:60,
+     arpDensity:2,melFreq:15,padThick:70,arpPattern:7,
+     layers:{piano:1,arpeggio:1,pad:1,bass:1,solfeggio:1},solfeggio:963},
+    {id:'lullaby',icon:'&#x1F6CF;',name:'安らぎの子守歌',desc:'暖かいピアノ + 柔らかいパッド',
+     tone:'warm',weight:50,scale:'pentatonic',root:65,progIdx:2,bpm:44,bright:520,reverb:65,delay:35,
+     arpDensity:3,melFreq:35,padThick:60,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,binaural:1},solfeggio:396,binFreq:3},
+    {id:'moonlight',icon:'&#x1F315;',name:'月光浴',desc:'クリスタル + 海 + 極スロー',
+     tone:'crystal',weight:35,scale:'pentatonic',root:60,progIdx:4,bpm:34,bright:600,reverb:85,delay:58,
+     arpDensity:2,melFreq:12,padThick:50,arpPattern:3,
+     layers:{piano:1,pad:1,bass:1,ocean:1,bowl:1}},
+    {id:'dreamFlight',icon:'&#x1F4AB;',name:'夢の世界へ',desc:'ダーク174Hz + 超重厚ドローン',
+     tone:'dark',weight:92,scale:'pentatonic',root:55,progIdx:8,bpm:32,bright:300,reverb:90,delay:65,
+     arpDensity:1,melFreq:8,padThick:92,arpPattern:7,
+     layers:{pad:1,bass:1,wind:1,solfeggio:1,binaural:1},solfeggio:174,binFreq:1},
+    {id:'wombReturn',icon:'&#x1F49E;',name:'胎内回帰',desc:'ダーク174Hz + 超低ベース + 雨',
+     tone:'dark',weight:95,scale:'pentatonic',root:57,progIdx:6,bpm:30,bright:280,reverb:88,delay:58,
+     arpDensity:1,melFreq:5,padThick:95,arpPattern:3,
+     layers:{pad:1,bass:1,rain:1,solfeggio:1,binaural:1},solfeggio:174,binFreq:2},
+  ],
+  nature: [
+    {id:'forestBath',icon:'&#x1F332;',name:'森林浴',desc:'ブライト + 風 + チャイム',
+     tone:'bright',weight:40,scale:'pentatonic',root:64,progIdx:1,bpm:58,bright:1100,reverb:55,delay:28,
+     arpDensity:4,melFreq:45,padThick:45,arpPattern:1,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,wind:1,chime:1}},
+    {id:'rainMed',icon:'&#x1F327;',name:'浄化の雨',desc:'暖かいピアノ + 雨 + 528Hz',
+     tone:'warm',weight:60,scale:'dorian',root:62,progIdx:9,bpm:52,bright:650,reverb:65,delay:38,
+     arpDensity:5,melFreq:40,padThick:65,arpPattern:5,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,rain:1,solfeggio:1},solfeggio:528},
+    {id:'oceanWave',icon:'&#x1F30A;',name:'海の波動',desc:'幻想的ベル + 海 + 174Hz',
+     tone:'ethereal',weight:50,scale:'pentatonic',root:60,progIdx:4,bpm:44,bright:700,reverb:75,delay:48,
+     arpDensity:3,melFreq:30,padThick:60,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,ocean:1,bowl:1,solfeggio:1},solfeggio:174},
+    {id:'sakuraWind',icon:'&#x1F338;',name:'桜吹雪',desc:'クリスタル + 風 + 軽やか',
+     tone:'crystal',weight:25,scale:'major',root:71,progIdx:5,bpm:68,bright:1600,reverb:52,delay:25,
+     arpDensity:6,melFreq:55,padThick:30,arpPattern:4,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,wind:1,chime:1}},
+    {id:'mountainStream',icon:'&#x26F0;',name:'山の清流',desc:'ブライト + 雨 + 風 + ベル',
+     tone:'bright',weight:45,scale:'pentatonic',root:64,progIdx:7,bpm:62,bright:950,reverb:58,delay:30,
+     arpDensity:5,melFreq:45,padThick:50,arpPattern:1,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,rain:1,wind:1,chime:1}},
+    {id:'desertNight',icon:'&#x1F3DC;',name:'砂漠の夜空',desc:'ダーク + ボウル + 深い静寂',
+     tone:'dark',weight:80,scale:'minor',root:55,progIdx:9,bpm:36,bright:350,reverb:88,delay:60,
+     arpDensity:2,melFreq:10,padThick:80,arpPattern:3,
+     layers:{piano:1,pad:1,bass:1,bowl:1}},
+  ],
+  money: [
+    {id:'moneyAttract',icon:'&#x1FA99;',name:'金運引き寄せ',desc:'パワフル888Hz + コイン',
+     tone:'powerful',weight:65,scale:'major',root:67,progIdx:5,bpm:80,bright:1200,reverb:48,delay:22,
+     arpDensity:7,melFreq:55,padThick:55,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,coin:1,solfeggio:1},solfeggio:888},
+    {id:'wealthFlow',icon:'&#x1F4B0;',name:'富と豊かさの流れ',desc:'ブライト528Hz + コイン',
+     tone:'bright',weight:50,scale:'lydian',root:65,progIdx:0,bpm:72,bright:1300,reverb:50,delay:25,
+     arpDensity:6,melFreq:50,padThick:50,arpPattern:4,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,coin:1,chime:1,solfeggio:1},solfeggio:528},
+    {id:'abundance888',icon:'&#x2728;',name:'888Hz アバンダンス',desc:'パワフル + 速いアルペジオ',
+     tone:'powerful',weight:75,scale:'major',root:69,progIdx:7,bpm:86,bright:1400,reverb:42,delay:18,
+     arpDensity:8,melFreq:60,padThick:60,arpPattern:1,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,coin:1,solfeggio:1},solfeggio:888},
+    {id:'businessSuccess',icon:'&#x1F4C8;',name:'ビジネス成功',desc:'クリスタル741Hz + アルファ波',
+     tone:'crystal',weight:35,scale:'mixolydian',root:64,progIdx:6,bpm:74,bright:1100,reverb:45,delay:20,
+     arpDensity:5,melFreq:45,padThick:40,arpPattern:2,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,coin:1,binaural:1},solfeggio:741,binFreq:12},
+    {id:'lotteryLuck',icon:'&#x1F340;',name:'幸運体質',desc:'幻想的888Hz + チャイム + コイン',
+     tone:'ethereal',weight:45,scale:'lydian',root:67,progIdx:1,bpm:66,bright:1200,reverb:60,delay:35,
+     arpDensity:5,melFreq:50,padThick:50,arpPattern:5,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,coin:1,chime:1,bowl:1,solfeggio:1},solfeggio:888},
+    {id:'gratitudeWealth',icon:'&#x1F64F;',name:'感謝と豊穣',desc:'暖かい639Hz + 雨 + コイン',
+     tone:'warm',weight:55,scale:'major',root:65,progIdx:2,bpm:58,bright:900,reverb:58,delay:32,
+     arpDensity:5,melFreq:48,padThick:62,arpPattern:0,
+     layers:{piano:1,arpeggio:1,melody:1,pad:1,bass:1,coin:1,rain:1,solfeggio:1},solfeggio:639},
+  ],
+};
+
+// =============================================
+// STATE
+// =============================================
+let audioCtx,masterGain,analyser,reverbConv,reverbGain,dryGain,delayNode,delayFB,delayGain;
+let isPlaying=false, currentPreset=null;
+const layerState={piano:0,arpeggio:0,melody:0,pad:0,bass:0,bowl:0,chime:0,coin:0,rain:0,wind:0,ocean:0,solfeggio:0,binaural:0};
+const activeNodes={pad:null,bass:null,rain:null,wind:null,ocean:null,solfeggio:null,binaural:null};
+let scheduleTimer=null,bowlTimer=null;
+let currentTone=TONES.warm, currentWeight=60;
+let lastPianoTime=0, lastArpTime=0, lastMelTime=0, lastBowlTime=0, lastChimeTime=0, lastCoinTime=0;
+let pianoInterval=4, arpInterval=2, melInterval=12, bowlInterval=15, chimeInterval=8, coinInterval=6;
+let chordIdx=0,beatCount=0,melodyHistory=[];
+let currentChord=[0,4,7,12],currentChords=PROG_LIB[0],currentScale=[0,2,4,7,9],currentRoot=60;
+let currentArpPattern=ARP_PATTERNS[0];
+
+// =============================================
+// INIT AUDIO
+// =============================================
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain();masterGain.gain.value=.6;
+  reverbConv=audioCtx.createConvolver();
+  dryGain=audioCtx.createGain();reverbGain=audioCtx.createGain();
+  delayNode=audioCtx.createDelay(3);delayFB=audioCtx.createGain();delayGain=audioCtx.createGain();
+  analyser=audioCtx.createAnalyser();analyser.fftSize=2048;
+  masterGain.connect(dryGain);masterGain.connect(reverbConv);masterGain.connect(delayNode);
+  reverbConv.connect(reverbGain);delayNode.connect(delayFB);delayFB.connect(delayNode);delayNode.connect(delayGain);
+  dryGain.connect(analyser);reverbGain.connect(analyser);delayGain.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  buildReverb(4.5);startVis();
+}
+
+function buildReverb(sec){
+  const len=audioCtx.sampleRate*sec,buf=audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.5);}
+  reverbConv.buffer=buf;
+}
+
+function mtf(m){return 440*Math.pow(2,(m-69)/12)}
+
+// =============================================
+// PIANO NOTE - Realistic soft piano sound
+// =============================================
+function playPianoNote(midi,dur,vel){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime,freq=mtf(midi);
+  const tone=currentTone;
+  const harmonics=tone.piano;
+  const bright=parseInt(document.getElementById('ctrlBright').value)||800;
+  harmonics.forEach(h=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();
+    o.type=h.t;o.frequency.value=freq*h.r;
+    f.type='lowpass';f.frequency.value=Math.min(freq*tone.filterMul,bright);f.Q.value=.3;
+    const peak=vel*h.v*.08;
+    g.gain.setValueAtTime(0,now);
+    g.gain.linearRampToValueAtTime(peak,now+tone.attack);
+    g.gain.exponentialRampToValueAtTime(peak*.6,now+dur*(1-tone.decay)*.5);
+    g.gain.exponentialRampToValueAtTime(peak*.15,now+dur*tone.decay);
+    g.gain.exponentialRampToValueAtTime(.0001,now+dur);
+    o.connect(f);f.connect(g);g.connect(masterGain);
+    o.start(now);o.stop(now+dur+.1);
+  });
+}
+
+// Bell/Chime sound
+function playBellNote(midi,dur,vel){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime,freq=mtf(midi);
+  [1,2.76,4.07,5.57].forEach((p,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=freq*p;
+    const pV=vel*.06/(i+1);
+    g.gain.setValueAtTime(0,now);
+    g.gain.linearRampToValueAtTime(pV,now+.005);
+    g.gain.exponentialRampToValueAtTime(.0001,now+dur*(1.2-i*.15));
+    o.connect(g);g.connect(masterGain);o.start(now);o.stop(now+dur+.2);
+  });
+}
+
+// =============================================
+// PAD SOUND - Rich evolving ambient pad
+// =============================================
+function startPadSound(chord,root,bright,thickness){
+  stopNode('pad');
+  const now=audioCtx.currentTime,pg=audioCtx.createGain();
+  pg.gain.value=0;pg.connect(masterGain);
+  const tone=currentTone;
+  const wMul=currentWeight/60; // weight multiplier
+  const oscs=[];const vol=(thickness||60)/100*.15*(.6+wMul*.4);
+  chord.forEach(iv=>{
+    const fr=mtf(root-12+iv);
+    tone.padTypes.forEach((t,ti)=>{
+      for(let d=-1;d<=1;d++){
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain(),fl=audioCtx.createBiquadFilter();
+        o.type=t;o.frequency.value=fr*(1+d*tone.padDetune+ti*.001);
+        const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+        lfo.frequency.value=.015+Math.random()*.04;lg.gain.value=.6+Math.random()*.4;
+        lfo.connect(lg);lg.connect(o.frequency);lfo.start(now);
+        fl.type='lowpass';fl.frequency.value=(bright||800)*(.5+wMul*.5)+Math.random()*200;fl.Q.value=.2;
+        g.gain.value=vol/3;o.connect(fl);fl.connect(g);g.connect(pg);o.start(now);oscs.push(o,lfo);
+      }
+    });
+  });
+  pg.gain.linearRampToValueAtTime(1,now+6);
+  activeNodes.pad={oscs,gain:pg};
+}
+
+// =============================================
+// BASS - Deep sub bass note
+// =============================================
+function startBassSound(root){
+  stopNode('bass');
+  const now=audioCtx.currentTime,fr=mtf(root-24);
+  const tone=currentTone;
+  const wMul=currentWeight/60;
+  const bg=audioCtx.createGain();bg.gain.value=0;bg.connect(masterGain);
+  const oscs=[];
+  const bVol=tone.bassVol*(.5+wMul*.8);
+  [1,2].forEach((r,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=fr*r;g.gain.value=bVol/(i+1);
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=.01+Math.random()*.02;lg.gain.value=.3;
+    lfo.connect(lg);lg.connect(o.frequency);lfo.start(now);
+    o.connect(g);g.connect(bg);o.start(now);oscs.push(o,lfo);
+  });
+  bg.gain.linearRampToValueAtTime(1,now+5);
+  activeNodes.bass={oscs,gain:bg};
+}
+
+// =============================================
+// NOISE - Nature sounds
+// =============================================
+function makeNoiseBuf(sec){
+  const len=audioCtx.sampleRate*sec,buf=audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(let c=0;c<2;c++){const d=buf.getChannelData(c);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;}
+  return buf;
+}
+function startNoise(name,opts){
+  stopNode(name);const now=audioCtx.currentTime,buf=makeNoiseBuf(4),src=audioCtx.createBufferSource();
+  src.buffer=buf;src.loop=true;
+  const f1=audioCtx.createBiquadFilter(),f2=audioCtx.createBiquadFilter(),g=audioCtx.createGain();
+  f1.type=opts.f1t;f1.frequency.value=opts.f1f;f1.Q.value=opts.f1q||.5;
+  f2.type=opts.f2t;f2.frequency.value=opts.f2f;f2.Q.value=opts.f2q||.5;
+  g.gain.value=0;g.gain.linearRampToValueAtTime(opts.vol,now+3);
+  if(opts.lfo){
+    const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+    lfo.frequency.value=opts.lfo.f;lg.gain.value=opts.lfo.g;
+    lfo.connect(lg);lg.connect(f1.frequency);lfo.start();
+    src.connect(f1);f1.connect(f2);f2.connect(g);g.connect(masterGain);src.start();
+    activeNodes[name]={src,gain:g,lfo};
+  }else{
+    src.connect(f1);f1.connect(f2);f2.connect(g);g.connect(masterGain);src.start();
+    activeNodes[name]={src,gain:g};
+  }
+}
+function startRainSound(){startNoise('rain',{f1t:'bandpass',f1f:5000,f1q:.4,f2t:'highpass',f2f:800,vol:.05})}
+function startWindSound(){startNoise('wind',{f1t:'lowpass',f1f:500,f2t:'highpass',f2f:40,f2q:.3,vol:.035,lfo:{f:.06,g:180}})}
+function startOceanSound(){startNoise('ocean',{f1t:'lowpass',f1f:400,f1q:.7,f2t:'highpass',f2f:50,vol:.04,lfo:{f:.08,g:150}})}
+
+function startSolfeggioSound(freq){
+  stopNode('solfeggio');const now=audioCtx.currentTime;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='sine';o.frequency.value=freq||528;g.gain.value=0;
+  g.gain.linearRampToValueAtTime(.02,now+5);
+  o.connect(g);g.connect(masterGain);o.start(now);
+  activeNodes.solfeggio={oscs:[o],gain:g};
+}
+function startBinauralSound(beatFreq){
+  stopNode('binaural');const now=audioCtx.currentTime;
+  const base=200,mg=audioCtx.createChannelMerger(2);
+  const oL=audioCtx.createOscillator(),oR=audioCtx.createOscillator();
+  const gL=audioCtx.createGain(),gR=audioCtx.createGain();
+  oL.type='sine';oR.type='sine';oL.frequency.value=base;oR.frequency.value=base+(beatFreq||7);
+  gL.gain.value=.06;gR.gain.value=.06;
+  oL.connect(gL);oR.connect(gR);gL.connect(mg,0,0);gR.connect(mg,0,1);
+  mg.connect(masterGain);oL.start();oR.start();
+  activeNodes.binaural={oscs:[oL,oR],gain:gL,merger:mg,gainR:gR};
+}
+
+function stopNode(name){
+  const n=activeNodes[name];if(!n)return;
+  const now=audioCtx.currentTime;
+  if(n.gain)n.gain.gain.linearRampToValueAtTime(0,now+2);
+  if(n.gainR)n.gainR.gain.linearRampToValueAtTime(0,now+2);
+  const items=[...(n.oscs||[]),n.src,n.lfo].filter(Boolean);
+  setTimeout(()=>{items.forEach(o=>{try{o.stop()}catch(e){}})},2500);
+  activeNodes[name]=null;
+}
+
+function playSingleBowl(){
+  if(!audioCtx||!layerState.bowl)return;
+  const now=audioCtx.currentTime,bf=160+Math.random()*280;
+  [1,2.71,4.55,6.57].forEach((r,i)=>{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type='sine';o.frequency.value=bf*r;
+    const v=.05/(i+1);g.gain.value=0;g.gain.linearRampToValueAtTime(v,now+.3);
+    g.gain.exponentialRampToValueAtTime(.0001,now+8+Math.random()*4);
+    o.connect(g);g.connect(masterGain);o.start(now);o.stop(now+13);
+  });
+}
+
+function playChimeSound(){
+  if(!audioCtx||!layerState.chime)return;
+  const now=audioCtx.currentTime;
+  const n=currentRoot+currentScale[Math.floor(Math.random()*currentScale.length)]+24;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type='sine';o.frequency.value=mtf(n);
+  g.gain.value=0;g.gain.linearRampToValueAtTime(.025,now+.005);
+  g.gain.exponentialRampToValueAtTime(.0001,now+3);
+  o.connect(g);g.connect(masterGain);o.start(now);o.stop(now+3.5);
+}
+
+// Coin chime - metallic coin clink sound
+function playCoinSound(){
+  if(!audioCtx||!layerState.coin)return;
+  const now=audioCtx.currentTime;
+  // チャリチャリ感: more coins, rapid successive hits, brighter ring
+  const numCoins=3+Math.floor(Math.random()*5); // 3-7 coins rattling
+  for(let c=0;c<numCoins;c++){
+    const t=c*.025+Math.random()*.035; // tighter spacing for jingly feel
+    const baseFreq=3200+Math.random()*3500; // higher base for brighter clink
+    // Metallic inharmonic partials
+    [1, 1.47, 2.03, 2.87, 3.76, 5.13].forEach((partial,i)=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();
+      o.type=i<2?'triangle':'sine';
+      o.frequency.value=baseFreq*partial*(0.96+Math.random()*0.08);
+      f.type='highpass';f.frequency.value=2000;f.Q.value=1.2;
+      const vol=.03/(i+1)*(0.7+Math.random()*.6);
+      g.gain.setValueAtTime(0,now+t);
+      g.gain.linearRampToValueAtTime(vol,now+t+.001);
+      g.gain.exponentialRampToValueAtTime(vol*.4,now+t+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,now+t+.08+Math.random()*.12);
+      o.connect(f);f.connect(g);g.connect(masterGain);
+      o.start(now+t);o.stop(now+t+.25);
+    });
+    // Bright shimmer ring per coin
+    const ring=audioCtx.createOscillator(),rg=audioCtx.createGain();
+    ring.type='sine';ring.frequency.value=7000+Math.random()*5000;
+    rg.gain.setValueAtTime(0,now+t);
+    rg.gain.linearRampToValueAtTime(.012,now+t+.001);
+    rg.gain.exponentialRampToValueAtTime(.0001,now+t+.2+Math.random()*.15);
+    ring.connect(rg);rg.connect(masterGain);ring.start(now+t);ring.stop(now+t+.5);
+  }
+  // Extra trailing jingle - a few quieter delayed clinks
+  for(let j=0;j<2+Math.floor(Math.random()*3);j++){
+    const dt=numCoins*.03+.05+j*.06+Math.random()*.04;
+    const bf=4000+Math.random()*4000;
+    [1,1.5,2.3].forEach((p,i)=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine';o.frequency.value=bf*p;
+      const v=.012/(i+1);
+      g.gain.setValueAtTime(0,now+dt);
+      g.gain.linearRampToValueAtTime(v,now+dt+.001);
+      g.gain.exponentialRampToValueAtTime(.0001,now+dt+.06+Math.random()*.05);
+      o.connect(g);g.connect(masterGain);o.start(now+dt);o.stop(now+dt+.15);
+    });
+  }
+}
+
+// =============================================
+// MUSIC SEQUENCER - The heart of the music engine
+// =============================================
+function getBPM(){return parseInt(document.getElementById('ctrlBPM').value)||60;}
+function getArpDensity(){return parseInt(document.getElementById('ctrlArpDensity').value)||5;}
+function getMelFreq(){return parseInt(document.getElementById('ctrlMelFreq').value)||50;}
+
+function scheduleBeat(){
+  if(!isPlaying)return;
+  const bpm=getBPM();
+  const beatMs=(60/bpm)*1000;
+  const beatsPerChord=Math.round(bpm*.25); // chord changes every ~4 bars
+
+  // --- CHORD CHANGE ---
+  if(beatCount%beatsPerChord===0){
+    chordIdx=(chordIdx+1)%currentChords.length;
+    currentChord=currentChords[chordIdx];
+
+    // Update pad
+    if(layerState.pad){
+      const bright=parseInt(document.getElementById('ctrlBright').value)||800;
+      const thick=parseInt(document.getElementById('ctrlPadThick').value)||60;
+      const root=parseInt(document.getElementById('ctrlKey').value)||currentRoot;
+      startPadSound(currentChord,root,bright,thick);
+    }
+    // Update bass
+    if(layerState.bass){
+      const root=parseInt(document.getElementById('ctrlKey').value)||currentRoot;
+      startBassSound(root+currentChord[0]);
+    }
+  }
+
+  // --- PIANO CHORD (time-interval based) ---
+  if(layerState.piano){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastPianoTime>=pianoInterval){
+      lastPianoTime=nowSec+Math.random()*pianoInterval*.2;
+      const root=parseInt(document.getElementById('ctrlKey').value)||currentRoot;
+      const style=Math.floor(Math.random()*4);
+      if(style===0){
+        currentChord.forEach((iv,i)=>{
+          setTimeout(()=>playPianoNote(root+iv,4+Math.random()*2,.4+Math.random()*.12),i*70+Math.random()*30);
+        });
+      }else if(style===1){
+        playPianoNote(root+currentChord[0],5+Math.random()*2,.45);
+        setTimeout(()=>playPianoNote(root+currentChord[2],4+Math.random()*2,.3),120+Math.random()*50);
+      }else if(style===2){
+        playPianoNote(root+currentChord[0],5,.4);
+        setTimeout(()=>{
+          for(let i=1;i<currentChord.length;i++){
+            setTimeout(()=>playPianoNote(root+currentChord[i],3+Math.random()*2,.28+Math.random()*.08),i*150);
+          }
+        },300+Math.random()*200);
+      }else{
+        const topNote=root+currentChord[currentChord.length-1];
+        playPianoNote(topNote,5+Math.random()*3,.35);
+      }
+    }
+  }
+
+  // --- ARPEGGIO (time-interval based burst) ---
+  if(layerState.arpeggio){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastArpTime>=arpInterval){
+      lastArpTime=nowSec+Math.random()*arpInterval*.2;
+      const density=getArpDensity();
+      const root=parseInt(document.getElementById('ctrlKey').value)||currentRoot;
+      const notesInBurst=Math.max(2,Math.floor(density*.7));
+      const spacing=150+Math.random()*200;
+      for(let s=0;s<notesInBurst;s++){
+        setTimeout(()=>{
+          const patIdx=(beatCount*notesInBurst+s)%currentArpPattern.length;
+          const chordNoteIdx=currentArpPattern[patIdx]%currentChord.length;
+          const midi=root+currentChord[chordNoteIdx];
+          playPianoNote(midi,2+Math.random()*2,.25+Math.random()*.1);
+        },s*spacing);
+      }
+    }
+  }
+
+  // --- MELODY (time-interval based phrase) ---
+  if(layerState.melody){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastMelTime>=melInterval){
+      lastMelTime=nowSec+Math.random()*melInterval*.15;
+      const root=parseInt(document.getElementById('ctrlKey').value)||currentRoot;
+      currentPhrase=null;
+      const bpm=getBPM();
+      const noteSpacing=(60/bpm)*600+Math.random()*400;
+      const notesInPhrase=3+Math.floor(Math.random()*5);
+      for(let n=0;n<notesInPhrase;n++){
+        setTimeout(()=>{
+          const note=getNextMelodyNote(root);
+          if(note!==null){
+            const dur=2+Math.random()*4;
+            playPianoNote(note+12,dur,.32+Math.random()*.1);
+          }
+        },n*noteSpacing);
+      }
+    }
+  }
+
+  // --- CHIME (time-interval based) ---
+  if(layerState.chime){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastChimeTime>=chimeInterval){
+      lastChimeTime=nowSec+Math.random()*chimeInterval*.3;
+      setTimeout(playChimeSound,Math.random()*500);
+    }
+  }
+
+  // --- COIN (time-interval based) ---
+  if(layerState.coin){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastCoinTime>=coinInterval){
+      lastCoinTime=nowSec+Math.random()*coinInterval*.3;
+      setTimeout(playCoinSound,Math.random()*400);
+    }
+  }
+
+  // --- BOWL (time-interval based) ---
+  if(layerState.bowl){
+    const nowSec=audioCtx.currentTime;
+    if(nowSec-lastBowlTime>=bowlInterval){
+      lastBowlTime=nowSec+Math.random()*bowlInterval*.2;
+      setTimeout(playSingleBowl,Math.random()*1000);
+    }
+  }
+
+  beatCount++;
+  scheduleTimer=setTimeout(scheduleBeat,beatMs);
+}
+
+// =============================================
+// MELODY PHRASE GENERATOR - Multiple patterns
+// =============================================
+const MELODY_SHAPES = [
+  // ascending phrase
+  {name:'ascend', steps:[0,1,2,3,4,3,2,null]},
+  // descending phrase
+  {name:'descend', steps:[4,3,2,1,0,-1,null,null]},
+  // arch (up then down)
+  {name:'arch', steps:[0,1,2,3,2,1,0,null]},
+  // valley (down then up)
+  {name:'valley', steps:[3,2,1,0,1,2,3,null]},
+  // pendulum (oscillating)
+  {name:'pendulum', steps:[0,2,1,3,0,2,null,null]},
+  // leap and step back
+  {name:'leapBack', steps:[0,3,2,1,0,null,null,null]},
+  // repeated note with ornament
+  {name:'pedal', steps:[0,0,1,0,0,-1,0,null]},
+  // call and response (up phrase, down answer)
+  {name:'callResp', steps:[0,1,2,3,null,3,2,0]},
+  // wide intervals
+  {name:'wide', steps:[0,3,1,4,0,null,null,null]},
+  // gentle wave
+  {name:'wave', steps:[0,1,0,-1,0,1,2,1]},
+  // question (ends on non-root)
+  {name:'question', steps:[0,1,2,3,4,null,null,null]},
+  // answer (resolves to root)
+  {name:'answer', steps:[4,3,2,1,0,null,null,null]},
+];
+
+let currentPhrase=null, phrasePos=0, phraseBaseIdx=0;
+
+function getNextMelodyNote(root){
+  const scale=currentScale;
+
+  // Start a new phrase if needed
+  if(!currentPhrase || phrasePos>=currentPhrase.steps.length){
+    currentPhrase=MELODY_SHAPES[Math.floor(Math.random()*MELODY_SHAPES.length)];
+    phrasePos=0;
+    // Pick a starting scale position (weighted toward chord tones)
+    if(Math.random()<.5){
+      // Start on a chord tone
+      const chordNote=currentChord[Math.floor(Math.random()*Math.min(3,currentChord.length))]%12;
+      phraseBaseIdx=scale.indexOf(chordNote);
+      if(phraseBaseIdx<0)phraseBaseIdx=Math.floor(Math.random()*scale.length);
+    }else{
+      phraseBaseIdx=Math.floor(Math.random()*scale.length);
+    }
+  }
+
+  const step=currentPhrase.steps[phrasePos];
+  phrasePos++;
+
+  // null = rest
+  if(step===null)return null;
+
+  let idx=phraseBaseIdx+step;
+  // Wrap around the scale with octave changes
+  let octaveShift=0;
+  while(idx<0){idx+=scale.length;octaveShift-=12;}
+  while(idx>=scale.length){idx-=scale.length;octaveShift+=12;}
+
+  return root+scale[idx]+octaveShift;
+}
+
+// =============================================
+// APPLY PRESET
+// =============================================
+function applyPreset(preset){
+  currentPreset=preset;
+  chordIdx=-1;beatCount=0;melodyHistory=[];currentPhrase=null;phrasePos=0;
+
+  // Set tone character and weight
+  currentTone=TONES[preset.tone]||TONES.warm;
+  currentWeight=preset.weight||60;
+
+  currentRoot=preset.root;
+  currentScale=SCALES[preset.scale]||SCALES.pentatonic;
+  currentChords=PROG_LIB[preset.progIdx||0];
+  currentChord=currentChords[0];
+  currentArpPattern=ARP_PATTERNS[preset.arpPattern||0];
+
+  // Update UI controls
+  document.getElementById('ctrlBPM').value=preset.bpm||60;
+  document.getElementById('ctrlBright').value=preset.bright||800;
+  document.getElementById('ctrlReverb').value=preset.reverb||65;
+  document.getElementById('ctrlDelay').value=preset.delay||35;
+  document.getElementById('ctrlArpDensity').value=preset.arpDensity||5;
+  document.getElementById('ctrlMelFreq').value=preset.melFreq||50;
+  document.getElementById('ctrlPadThick').value=preset.padThick||60;
+  document.getElementById('ctrlKey').value=preset.root;
+  if(preset.solfeggio)document.getElementById('solfreqSel').value=preset.solfeggio;
+  if(preset.binFreq)document.getElementById('binFreq').value=preset.binFreq;
+  updateCtrl();
+
+  // Set layers
+  const L=preset.layers||{};
+  ['piano','arpeggio','melody','pad','bass','bowl','chime','coin','rain','wind','ocean','solfeggio','binaural'].forEach(n=>{
+    layerState[n]=L[n]?1:0;
+    document.getElementById('tog-'+n).classList.toggle('on',!!L[n]);
+  });
+
+  // Highlight active card
+  document.querySelectorAll('.preset-card').forEach(c=>c.classList.remove('active'));
+  const el=document.querySelector(`.preset-card[data-id="${preset.id}"]`);
+  if(el)el.classList.add('active');
+
+  if(isPlaying)restartSound();
+}
+
+function restartSound(){
+  clearAllTimers();stopAllNodes();
+  if(!currentPreset&&!currentChords)return;
+
+  const rev=parseInt(document.getElementById('ctrlReverb').value)/100;
+  const del=parseInt(document.getElementById('ctrlDelay').value)/100;
+  buildReverb(2+rev*5);reverbGain.gain.value=rev;dryGain.gain.value=1-rev*.5;
+  delayNode.delayTime.value=.3+del*1.5;delayFB.gain.value=del*.45;delayGain.gain.value=del*.25;
+
+  beatCount=0;chordIdx=-1;
+  lastPianoTime=0;lastArpTime=0;lastMelTime=0;lastBowlTime=0;lastChimeTime=0;lastCoinTime=0;
+
+  // Start nature sounds
+  if(layerState.rain)startRainSound();
+  if(layerState.wind)startWindSound();
+  if(layerState.ocean)startOceanSound();
+  if(layerState.solfeggio)startSolfeggioSound(parseInt(document.getElementById('solfreqSel').value));
+  if(layerState.binaural)startBinauralSound(parseFloat(document.getElementById('binFreq').value));
+
+  // Start music sequencer
+  setTimeout(()=>scheduleBeat(),500);
+}
+
+function clearAllTimers(){
+  if(scheduleTimer)clearTimeout(scheduleTimer);
+  if(bowlTimer)clearTimeout(bowlTimer);
+  scheduleTimer=bowlTimer=null;
+}
+
+function stopAllNodes(){
+  ['pad','bass','rain','wind','ocean','solfeggio','binaural'].forEach(n=>stopNode(n));
+}
+
+// =============================================
+// AUTO GENERATE - Random ambient music creation
+// =============================================
+const GEN_MOODS=[
+  {name:'静寂の瞑想',icon:'&#x1F9D8;'},
+  {name:'宇宙の旅',icon:'&#x1F30C;'},
+  {name:'深い癒し',icon:'&#x1F49C;'},
+  {name:'天上の光',icon:'&#x2728;'},
+  {name:'夢幻の世界',icon:'&#x1F4AB;'},
+  {name:'魂の浄化',icon:'&#x1F52E;'},
+  {name:'朝の目覚め',icon:'&#x1F31E;'},
+  {name:'月光の祈り',icon:'&#x1F319;'},
+  {name:'森の聖域',icon:'&#x1F332;'},
+  {name:'海の記憶',icon:'&#x1F30A;'},
+  {name:'エネルギー覚醒',icon:'&#x26A1;'},
+  {name:'無限の安らぎ',icon:'&#x2601;'},
+  {name:'時空を超えて',icon:'&#x1F310;'},
+  {name:'内なる光',icon:'&#x1F31F;'},
+  {name:'聖なる空間',icon:'&#x1FAB7;'},
+  {name:'金運上昇',icon:'&#x1FA99;'},
+  {name:'豊かさの泉',icon:'&#x1F4B0;'},
+];
+
+function autoGenerate(){
+  initAudio();
+
+  const mood=GEN_MOODS[Math.floor(Math.random()*GEN_MOODS.length)];
+  const toneLabels={warm:'暖かい',bright:'明るい',dark:'暗い',ethereal:'幻想的',powerful:'力強い',crystal:'透明'};
+  document.getElementById('genMood').innerHTML=mood.icon+' '+mood.name+' &#x300C;'+toneLabels[tone]+'&#x300D;';
+
+  // Random scale
+  const scaleNames=Object.keys(SCALES);
+  const scaleName=scaleNames[Math.floor(Math.random()*scaleNames.length)];
+
+  // Random root (common ambient keys)
+  const roots=[55,57,60,62,64,65,67,69];
+  const root=roots[Math.floor(Math.random()*roots.length)];
+
+  // Random chord progression
+  const progIdx=Math.floor(Math.random()*PROG_LIB.length);
+
+  // Random arpeggio pattern
+  const arpPatIdx=Math.floor(Math.random()*ARP_PATTERNS.length);
+
+  // Random tone type
+  const toneNames=Object.keys(TONES);
+  const tone=toneNames[Math.floor(Math.random()*toneNames.length)];
+  const weight=20+Math.floor(Math.random()*80);
+
+  // Random BPM (wider range: 28-90)
+  const bpm=28+Math.floor(Math.random()*62);
+
+  // Random parameters - wider ranges for more diversity
+  const bright=250+Math.floor(Math.random()*1500);
+  const reverb=35+Math.floor(Math.random()*60);
+  const delay=10+Math.floor(Math.random()*60);
+  const arpDensity=1+Math.floor(Math.random()*9);
+  const melFreq=5+Math.floor(Math.random()*70);
+  const padThick=20+Math.floor(Math.random()*75);
+
+  // Random layers (always have pad and bass, randomly add others)
+  const layers={pad:1,bass:1};
+  if(Math.random()<.85)layers.piano=1;
+  if(Math.random()<.75)layers.arpeggio=1;
+  if(Math.random()<.6)layers.melody=1;
+  if(Math.random()<.35)layers.bowl=1;
+  if(Math.random()<.3)layers.chime=1;
+  if(Math.random()<.2)layers.coin=1;
+  // One nature sound at most
+  const natureSounds=['rain','wind','ocean'];
+  if(Math.random()<.5)layers[natureSounds[Math.floor(Math.random()*natureSounds.length)]]=1;
+  if(Math.random()<.25)layers.solfeggio=1;
+  if(Math.random()<.2)layers.binaural=1;
+
+  // Random solfeggio
+  const solfreqs=[174,285,396,417,528,639,741,852,888,963];
+  const solfeggio=solfreqs[Math.floor(Math.random()*solfreqs.length)];
+
+  const binFreq=1+Math.random()*14;
+
+  // Build virtual preset
+  const genPreset={
+    id:'generated',tone,weight,scale:scaleName,root,progIdx,bpm,bright,reverb,delay,
+    arpDensity,melFreq,padThick,arpPattern:arpPatIdx,layers,solfeggio,binFreq
+  };
+
+  // Clear preset highlights
+  document.querySelectorAll('.preset-card').forEach(c=>c.classList.remove('active'));
+
+  applyPreset(genPreset);
+  if(!isPlaying)togglePlay();
+}
+
+// =============================================
+// CONTROLS
+// =============================================
+function togglePlay(){
+  initAudio();
+  if(!isPlaying){
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    isPlaying=true;
+    if(!currentPreset)applyPreset(PRESETS.relax[0]);
+    else restartSound();
+    document.getElementById('playBtn').innerHTML='\u275A\u275A';
+    document.getElementById('playBtn').classList.add('playing');
+  }else{
+    isPlaying=false;clearAllTimers();stopAllNodes();
+    document.getElementById('playBtn').innerHTML='\u25B6';
+    document.getElementById('playBtn').classList.remove('playing');
+  }
+}
+
+function setMasterVol(){if(masterGain)masterGain.gain.linearRampToValueAtTime(document.getElementById('masterVol').value/100,audioCtx.currentTime+.1)}
+
+function togLayer(name){
+  initAudio();
+  layerState[name]=layerState[name]?0:1;
+  document.getElementById('tog-'+name).classList.toggle('on',!!layerState[name]);
+  if(isPlaying){
+    if(!layerState[name]){
+      if(['pad','bass','rain','wind','ocean','solfeggio','binaural'].includes(name))stopNode(name);
+    }else{
+      if(name==='rain')startRainSound();
+      if(name==='wind')startWindSound();
+      if(name==='ocean')startOceanSound();
+      if(name==='solfeggio')startSolfeggioSound(parseInt(document.getElementById('solfreqSel').value));
+      if(name==='binaural')startBinauralSound(parseFloat(document.getElementById('binFreq').value));
+    }
+  }
+}
+
+function updateCtrl(){
+  document.getElementById('valBPM').textContent=document.getElementById('ctrlBPM').value;
+  document.getElementById('valBright').textContent=document.getElementById('ctrlBright').value;
+  document.getElementById('valReverb').textContent=document.getElementById('ctrlReverb').value+'%';
+  document.getElementById('valDelay').textContent=document.getElementById('ctrlDelay').value+'%';
+  document.getElementById('valArpDensity').textContent=document.getElementById('ctrlArpDensity').value;
+  document.getElementById('valMelFreq').textContent=document.getElementById('ctrlMelFreq').value+'%';
+  document.getElementById('valPadThick').textContent=document.getElementById('ctrlPadThick').value+'%';
+}
+
+function updateSolfreq(){if(isPlaying&&layerState.solfeggio)startSolfeggioSound(parseInt(document.getElementById('solfreqSel').value))}
+function updateBinFreq(){
+  const v=parseFloat(document.getElementById('binFreq').value);
+  document.getElementById('valBinFreq').textContent=v.toFixed(1)+'Hz';
+  if(activeNodes.binaural)activeNodes.binaural.oscs[1].frequency.linearRampToValueAtTime(200+v,audioCtx.currentTime+.1);
+}
+function updateIntervals(){
+  pianoInterval=parseInt(document.getElementById('ctrlPianoInt').value)||4;
+  arpInterval=parseInt(document.getElementById('ctrlArpInt').value)||2;
+  melInterval=parseInt(document.getElementById('ctrlMelInt').value)||12;
+  bowlInterval=parseInt(document.getElementById('ctrlBowlInt').value)||15;
+  chimeInterval=parseInt(document.getElementById('ctrlChimeInt').value)||8;
+  coinInterval=parseInt(document.getElementById('ctrlCoinInt').value)||6;
+  document.getElementById('valPianoInt').textContent=pianoInterval+'秒';
+  document.getElementById('valArpInt').textContent=arpInterval+'秒';
+  document.getElementById('valMelInt').textContent=melInterval+'秒';
+  document.getElementById('valBowlInt').textContent=bowlInterval+'秒';
+  document.getElementById('valChimeInt').textContent=chimeInterval+'秒';
+  document.getElementById('valCoinInt').textContent=coinInterval+'秒';
+}
+
+// =============================================
+// TIMER
+// =============================================
+let timerInt=null,timerRem=0;
+function setTimer(min){
+  document.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('active'));
+  if(timerInt){clearInterval(timerInt);timerInt=null;}
+  if(min===0){document.getElementById('timerDisp').textContent='--:--';return;}
+  event.target.classList.add('active');timerRem=min*60;updTimerDisp();
+  timerInt=setInterval(()=>{timerRem--;updTimerDisp();
+    if(timerRem<=0){clearInterval(timerInt);timerInt=null;
+      if(masterGain){masterGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+8);
+        setTimeout(()=>{isPlaying=false;clearAllTimers();stopAllNodes();
+          document.getElementById('playBtn').innerHTML='\u25B6';
+          document.getElementById('playBtn').classList.remove('playing');
+          masterGain.gain.value=document.getElementById('masterVol').value/100;},9000);}}},1000);
+}
+function updTimerDisp(){const m=Math.floor(timerRem/60),s=timerRem%60;
+  document.getElementById('timerDisp').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
+
+// =============================================
+// RECORDING
+// =============================================
+let mediaRec=null,recChunks=[];
+function toggleRec(){if(!mediaRec||mediaRec.state==='inactive')startRec();else stopRec();}
+function startRec(){
+  initAudio();const dest=audioCtx.createMediaStreamDestination();analyser.connect(dest);
+  recChunks=[];mediaRec=new MediaRecorder(dest.stream,{mimeType:'audio/webm'});
+  mediaRec.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data)};
+  mediaRec.onstop=()=>{const blob=new Blob(recChunks,{type:'audio/webm'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);const d=new Date();
+    a.download=`sacred_sound_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.webm`;
+    a.click();document.getElementById('recSt').textContent='保存完了！';
+    setTimeout(()=>{document.getElementById('recSt').textContent='録音してダウンロード'},3000);};
+  mediaRec.start();document.getElementById('recBtn').classList.add('recording');
+  document.getElementById('recBtn').textContent='\u25A0 停止';document.getElementById('recSt').textContent='録音中...';
+}
+function stopRec(){if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();
+  document.getElementById('recBtn').classList.remove('recording');document.getElementById('recBtn').textContent='\u25CF 録音';}
+
+// =============================================
+// UI BUILDERS
+// =============================================
+let currentTab='relax';
+
+function showPresetTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('#presetTabs .tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');renderPresets();
+}
+
+function renderPresets(){
+  const grid=document.getElementById('presetGrid');grid.innerHTML='';
+  const presets=PRESETS[currentTab]||[];
+  presets.forEach(p=>{
+    const card=document.createElement('button');card.className='preset-card';card.dataset.id=p.id;
+    if(currentPreset&&currentPreset.id===p.id)card.classList.add('active');
+    card.innerHTML=`<span class="pc-icon">${p.icon}</span><span class="pc-name">${p.name}</span><span class="pc-desc">${p.desc}</span>`;
+    card.onclick=()=>applyPreset(p);grid.appendChild(card);
+  });
+}
+renderPresets();
+
+// =============================================
+// AFFIRMATIONS
+// =============================================
+const AFFS=["安らぎの波動が全身を包み込みます","宇宙のエネルギーがあなたを守っています","全てのチャクラが整い、光が満ちていきます",
+  "深い癒しの波動が全身に行き渡ります","あなたは完全に安全で、守られています","神聖な音が魂を浄化していきます",
+  "感謝の振動が全てを変容させます","光の存在として輝いています"];
+let affIdx=0;
+setInterval(()=>{const el=document.getElementById('affirmation');el.style.opacity='0';
+  setTimeout(()=>{affIdx=(affIdx+1)%AFFS.length;el.textContent=AFFS[affIdx];el.style.opacity='1';},1500);},10000);
+
+// =============================================
+// BACKGROUND & VISUALIZER
+// =============================================
+const bgC=document.getElementById('bg'),bgX=bgC.getContext('2d');
+const ptC=document.getElementById('particles'),ptX=ptC.getContext('2d');
+function resize(){bgC.width=ptC.width=innerWidth;bgC.height=ptC.height=innerHeight;}
+resize();addEventListener('resize',resize);
+
+let bgA=0;
+function drawFlower(cx,cy,r,a){
+  bgX.strokeStyle=`rgba(120,80,200,${a})`;bgX.lineWidth=.4;
+  bgX.beginPath();bgX.arc(cx,cy,r,0,Math.PI*2);bgX.stroke();
+  for(let i=0;i<6;i++){const an=(Math.PI/3)*i+bgA;bgX.beginPath();bgX.arc(cx+r*Math.cos(an),cy+r*Math.sin(an),r,0,Math.PI*2);bgX.stroke();}
+}
+
+function drawBg(){requestAnimationFrame(drawBg);bgX.fillStyle='rgba(4,4,10,.04)';bgX.fillRect(0,0,bgC.width,bgC.height);
+  bgA+=.0006;const cx=bgC.width/2,cy=bgC.height/2;
+  drawFlower(cx,cy,70,.04);drawFlower(cx,cy,130,.025);drawFlower(cx,cy,190,.015);
+}
+drawBg();
+
+const pts=[];for(let i=0;i<35;i++)pts.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,
+  vx:(Math.random()-.5)*.15,vy:-Math.random()*.2-.03,size:Math.random()*2+.3,
+  alpha:Math.random()*.2+.03,hue:Math.random()>.6?45:270});
+
+function drawPts(){requestAnimationFrame(drawPts);ptX.clearRect(0,0,ptC.width,ptC.height);
+  pts.forEach(p=>{p.x+=p.vx+Math.sin(Date.now()*.0005+p.y*.005)*.08;p.y+=p.vy;
+    if(p.y<-10){p.y=ptC.height+10;p.x=Math.random()*ptC.width;}
+    if(p.x<-10)p.x=ptC.width+10;if(p.x>ptC.width+10)p.x=-10;
+    const g=ptX.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*4);
+    g.addColorStop(0,`hsla(${p.hue},50%,65%,${p.alpha})`);g.addColorStop(1,'transparent');
+    ptX.fillStyle=g;ptX.beginPath();ptX.arc(p.x,p.y,p.size*4,0,Math.PI*2);ptX.fill();});}
+drawPts();
+
+function startVis(){
+  const c=document.getElementById('vis'),ctx=c.getContext('2d'),sz=480;c.width=sz;c.height=sz;
+  const cx=sz/2,cy=sz/2,bl=analyser.frequencyBinCount,da=new Uint8Array(bl),fa=new Uint8Array(bl);
+  let a=0;
+  function draw(){requestAnimationFrame(draw);analyser.getByteTimeDomainData(da);analyser.getByteFrequencyData(fa);
+    ctx.fillStyle='rgba(4,4,10,.1)';ctx.fillRect(0,0,sz,sz);a+=.0015;
+    let avg=0;for(let i=0;i<bl;i++)avg+=Math.abs(da[i]-128);avg/=bl;const int=Math.min(avg/20,1);
+    const gw=ctx.createRadialGradient(cx,cy,3,cx,cy,80+int*40);
+    gw.addColorStop(0,`rgba(255,200,80,${.03+int*.06})`);gw.addColorStop(.4,`rgba(100,60,180,${.015+int*.03})`);
+    gw.addColorStop(1,'transparent');ctx.fillStyle=gw;ctx.fillRect(0,0,sz,sz);
+    for(let r=0;r<5;r++){const rad=25+r*36,pts=36+r*8,fv=fa[Math.floor(r*bl/40)]/255;
+      ctx.strokeStyle=`hsla(${250+r*25+int*40},40%,${40+fv*25}%,${.06+fv*.12})`;ctx.lineWidth=.5+fv*.3;ctx.beginPath();
+      for(let i=0;i<=pts;i++){const an=(Math.PI*2/pts)*i+a*(r%2===0?1:-1);
+        const w=da[Math.floor(i*bl/pts/5)]||128,wo=((w-128)/128)*8*(1+r*.25);
+        const px=cx+(rad+wo)*Math.cos(an),py=cy+(rad+wo)*Math.sin(an);
+        if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);}ctx.closePath();ctx.stroke();}
+    ctx.fillStyle=`rgba(255,210,80,${.15+int*.3})`;ctx.beginPath();ctx.arc(cx,cy,2+int*2,0,Math.PI*2);ctx.fill();}
+  draw();
+}
+</script>
+</body>
+</html>
