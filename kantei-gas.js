@@ -1,220 +1,26 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>鑑定文ジェネレーター</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#0a0a12;--bg2:#12121f;--bg3:#1a1a2e;
-  --gold:#d4a853;--gold2:#f0d080;--gold-dim:#8a6d2b;
-  --text:#e8e0d4;--text2:#b0a898;--text3:#706858;
-  --accent:#6a4fc8;--danger:#c44;--success:#4a8;
-  --border:#2a2a3e;--radius:12px;
-}
-body{font-family:-apple-system,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
-a{color:var(--gold)}
+// ============================================================
+// 鑑定文自動生成 Google Apps Script
+// スプレッドシートに紐づけて使う
+// ============================================================
 
-/* Header */
-.header{background:linear-gradient(135deg,#0d0d1a 0%,#1a1028 100%);border-bottom:1px solid var(--border);padding:16px 20px;text-align:center;position:sticky;top:0;z-index:100}
-.header h1{font-size:1.3rem;color:var(--gold);letter-spacing:.1em}
-.header h1 span{font-size:.8rem;color:var(--text3);display:block;margin-top:2px;letter-spacing:0}
+// ---- 設定 ----
+const CONFIG = {
+  API_KEY: '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',
+  MODEL: 'anthropic/claude-sonnet-4.5',
+  SHEET_NAME: 'シート1',  // シート名（必要に応じて変更）
+  COL_NAME: 7,       // G列: お名前
+  COL_BIRTH: 8,      // H列: 生年月日
+  COL_WORRY: 9,      // I列: 現在のお悩み
+  COL_IDEAL: 10,     // J列: 理想の未来
+  COL_READING: 11,   // K列: 鑑定文（出力先）
+  COL_STATUS: 12,    // L列: 生成日時/ステータス
+  MAX_TOKENS: 8000,
+  TEMPERATURE: 0.85,
+};
 
-/* Container */
-.container{max-width:800px;margin:0 auto;padding:16px}
-.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
-.section-title{font-size:.85rem;color:var(--gold-dim);margin-bottom:12px;font-weight:600;letter-spacing:.05em}
-
-/* Buttons */
-.btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text2);font-size:.85rem;cursor:pointer;transition:all .2s}
-.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:linear-gradient(135deg,var(--gold-dim),var(--gold));color:#0a0a12;border:none;font-weight:700;font-size:1rem;padding:14px 28px}
-.btn-primary:hover{opacity:.9;color:#0a0a12}
-.btn-primary:disabled{opacity:.4;cursor:not-allowed}
-.btn-copy{background:var(--bg3);border:1px solid var(--gold-dim);color:var(--gold)}
-.btn-sm{padding:8px 14px;font-size:.8rem}
-
-/* Textarea */
-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;color:var(--text);font-size:.9rem;line-height:1.6;resize:vertical;outline:none;transition:border .2s;font-family:inherit}
-textarea:focus{border-color:var(--gold-dim)}
-textarea::placeholder{color:var(--text3)}
-
-/* Format hint */
-.format-hint{font-size:.75rem;color:var(--text3);margin-top:8px;padding:10px;background:var(--bg);border-radius:6px;line-height:1.8}
-.format-hint code{color:var(--gold-dim);font-size:.75rem}
-
-/* Generate button area */
-.gen-area{text-align:center;margin:20px 0}
-
-/* Result */
-.result-box{display:none}
-
-/* Analysis memo */
-.analysis-details{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
-.analysis-toggle{padding:14px 20px;cursor:pointer;font-size:.85rem;color:var(--text3);list-style:none;display:flex;align-items:center;gap:8px}
-.analysis-toggle::-webkit-details-marker{display:none}
-.analysis-toggle::before{content:'>';font-size:.75rem;transition:transform .2s;display:inline-block}
-details[open] .analysis-toggle::before{transform:rotate(90deg)}
-.analysis-content{padding:0 20px 16px;font-size:.82rem;color:var(--text2);line-height:1.8;white-space:pre-wrap;word-wrap:break-word}
-
-/* Reading display */
-.reading-display{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:20px;min-height:200px;white-space:pre-wrap;word-wrap:break-word;font-size:.92rem;line-height:1.9;color:var(--text)}
-.reading-display .separator{color:var(--gold-dim);text-align:center;display:block;margin:8px 0}
-
-/* Status bar */
-.status-bar{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:.8rem;flex-wrap:wrap;gap:8px}
-.char-count{color:var(--text2)}
-.char-count.ok{color:var(--success)}
-.char-count.ng{color:var(--danger)}
-
-/* Quality checks */
-.quality-box{margin-top:12px;display:none}
-.quality-grid{display:grid;gap:4px}
-.q-item{display:flex;align-items:center;gap:8px;font-size:.8rem;padding:6px 10px;border-radius:6px;background:var(--bg)}
-.q-item.pass{color:var(--success)}
-.q-item.fail{color:var(--danger);background:#1a0a0a}
-.q-icon{width:18px;text-align:center;font-size:.9rem}
-.quality-summary{font-size:.85rem;font-weight:600;margin-bottom:8px}
-.quality-summary.all-pass{color:var(--success)}
-.quality-summary.has-fail{color:var(--danger)}
-
-/* Copy main button */
-.copy-main{width:100%;margin-top:16px;font-size:1.05rem;padding:16px}
-
-/* Action buttons */
-.action-buttons{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-
-/* History */
-.history-section{display:none}
-.history-toggle{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:14px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px}
-.history-toggle .count{font-size:.8rem;color:var(--text3)}
-.history-toggle .label{font-size:.9rem;color:var(--text2)}
-.history-list{display:none}
-.history-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:0;margin-bottom:8px;display:flex;align-items:stretch;transition:border .2s;overflow:hidden}
-.history-item:hover{border-color:var(--gold-dim)}
-.history-item-main{flex:1;padding:14px;cursor:pointer}
-.history-delete{background:none;border:none;border-left:1px solid var(--border);color:var(--text3);font-size:1.1rem;padding:0 14px;cursor:pointer;transition:all .2s}
-.history-delete:hover{background:var(--danger);color:#fff}
-.history-meta{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text3);margin-bottom:4px}
-.history-name{font-size:.9rem;color:var(--gold)}
-.history-pattern{font-size:.75rem;color:var(--text3);margin-top:2px}
-.history-stats{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
-.history-stats h4{font-size:.8rem;color:var(--text3);margin-bottom:8px}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px}
-.stat-item{text-align:center;padding:8px;background:var(--bg);border-radius:6px}
-.stat-num{font-size:1.1rem;color:var(--gold);font-weight:700}
-.stat-label{font-size:.65rem;color:var(--text3)}
-
-/* Loading */
-.loading{display:none;text-align:center;padding:30px}
-.loading-dots{display:inline-flex;gap:6px}
-.loading-dots span{width:8px;height:8px;background:var(--gold-dim);border-radius:50%;animation:pulse 1.2s infinite}
-.loading-dots span:nth-child(2){animation-delay:.2s}
-.loading-dots span:nth-child(3){animation-delay:.4s}
-@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
-.loading-text{color:var(--text3);font-size:.8rem;margin-top:10px}
-
-/* Toast */
-.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--gold-dim);color:var(--gold);padding:12px 24px;border-radius:8px;font-size:.85rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
-.toast.show{opacity:1}
-
-/* Responsive */
-@media(max-width:600px){
-  .container{padding:10px}
-  .section{padding:14px}
-  .judgment-grid{grid-template-columns:1fr}
-  .reading-display{padding:14px;font-size:.85rem}
-  .stat-grid{grid-template-columns:repeat(2,1fr)}
-}
-
-/* Streaming cursor */
-.streaming-cursor::after{content:'|';animation:blink .8s infinite;color:var(--gold)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-</style>
-</head>
-<body>
-
-<div class="header">
-  <h1>鑑定文ジェネレーター<span>Spiritual Reading Generator</span></h1>
-</div>
-
-<div class="container">
-
-  <!-- API Key (embedded) -->
-
-  <!-- Input Section -->
-  <div class="section">
-    <div class="section-title">顧客データ入力</div>
-    <textarea id="customerData" rows="12" placeholder="エルメのフォーム回答をそのまま貼り付けてください"></textarea>
-    <div class="format-hint">
-      <code>◯ お名前</code> / <code>◯ 生年月日</code> / <code>◯ 現在のお悩み</code> / <code>◯ 理想の未来とは？</code><br>
-      ※ 名前と悩みは必須です。エルメの回答をそのまま貼り付けてOK。
-    </div>
-  </div>
-
-  <!-- Generate Button -->
-  <div class="gen-area">
-    <button class="btn btn-primary" id="genBtn" onclick="generate()">鑑定文を生成する</button>
-  </div>
-
-  <!-- Loading -->
-  <div class="loading" id="loading">
-    <div class="loading-dots"><span></span><span></span><span></span></div>
-    <div class="loading-text">鑑定文を生成しています...</div>
-  </div>
-
-  <!-- Result Section -->
-  <div class="result-box" id="resultBox">
-    <!-- Analysis Memo (collapsible) -->
-    <details class="analysis-details" id="analysisBox">
-      <summary class="analysis-toggle">分析メモを見る</summary>
-      <div class="analysis-content" id="analysisContent"></div>
-    </details>
-
-    <div class="section">
-      <div class="reading-display" id="readingDisplay"></div>
-      <div class="status-bar">
-        <span class="char-count" id="charCount">文字数: -</span>
-        <span id="qualitySummaryInline" style="font-size:.8rem"></span>
-      </div>
-
-      <!-- Copy Button (primary) -->
-      <button class="btn btn-primary copy-main" id="copyBtn" onclick="copyReading()">コピーする</button>
-
-      <!-- Sub Actions -->
-      <div class="action-buttons">
-        <button class="btn" onclick="generate()">再生成</button>
-        <button class="btn btn-sm" onclick="toggleQuality()">品質チェック</button>
-      </div>
-
-      <!-- Quality Checks -->
-      <div class="quality-box" id="qualityBox">
-        <div class="quality-summary" id="qualitySummary"></div>
-        <div class="quality-grid" id="qualityGrid"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- History Section -->
-  <div class="history-toggle" id="historyToggle" onclick="toggleHistory()">
-    <span class="label">履歴</span>
-    <span class="count" id="historyCount">0件</span>
-  </div>
-  <div class="history-section" id="historySection">
-    <div class="history-stats" id="historyStats"></div>
-    <div class="history-list" id="historyList" style="display:block"></div>
-  </div>
-
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-// ========================
-// META PROMPT
-// ========================
+// ============================================================
+// メタプロンプト
+// ============================================================
 const META_PROMPT = `あなたはプロの開運士として、相談者一人ひとりに完全オーダーメイドの鑑定文を作成するAIアシスタントです。
 
 以下の3ステップで鑑定文を生成してください。
@@ -245,13 +51,6 @@ const META_PROMPT = `あなたはプロの開運士として、相談者一人�
 ◯ 理想の未来とは？（※詳細にお書きください）
 （ここに理想の未来）
 
-＜以下は任意。フォームに項目がある場合のみ＞
-◯ 今、一番辛いと感じる瞬間はどんなときですか？
-（あれば記入）
-
-◯ 夜、一人になったとき、ふと頭に浮かぶことはなんですか？
-（あれば記入）
-
 =========
 
 
@@ -272,11 +71,6 @@ const META_PROMPT = `あなたはプロの開運士として、相談者一人�
 以下の手順で必ず組み込むこと。
 
 ■ 抽出方法:
-
-◆ 専用項目がある場合:
-  1.「現在のお悩み」から → 周りに見せている姿（建前）を読み取る
-  2.「夜ふと頭に浮かぶこと」から → 誰にも見せていない本心（本音）を読み取る
-  3.「一番辛い瞬間」から → 建前が崩れる瞬間を特定する
 
 ◆ 専用項目がない場合（現行フォーム: 4項目のみ）:
   「現在のお悩み」と「理想の未来」の2つの文章だけから本音と建前を見抜く。
@@ -427,16 +221,6 @@ STEP 2: パーツ選択
   冒頭で複数のテーマを語らない。最も刺さる1つだけを選び、
   10行以内で仕留めて「✦・┈┈┈┈┈┈┈┈ ・✦」で区切る。
   長い冒頭＝ダレる。短いから刺さる。余韻で次を読ませる。
-
-  ◎ 良い例（7行で即切り）:
-    くさん。
-    一つだけ聞かせてください。
-    何かをやめたとき。
-    ホッとしませんでしたか。
-    「もう頑張らなくていい」という安堵。
-    その直後に来る「またダメだった」という自己嫌悪。
-    この繰り返しを、もう何年続けていますか。
-    ✦・┈┈┈┈┈┈┈┈ ・✦
 
 ■ 以下のパーツはあくまで「型」。上記6原則に従って、
   相談者の内容に合わせて冒頭をカスタマイズすること。
@@ -910,491 +694,200 @@ STEP 3: 鑑定文生成ルール
 
 【出力フォーマット】
 
-以下の2ブロックに分けて出力すること。
-
-【分析メモ】
-・感情タイプ: ○○型（判定理由を1〜2文で）
-・カテゴリ: ○○（なぜこのカテゴリか1〜2文で）
-・構成パターン: ○（○○型）
-・方向性: この相談者にどういうアプローチで刺すか、なぜその組み合わせを選んだかを3〜5文で説明
-・選択パーツ: 導入○-○ / 才能②-○ / 未来③-○ / 危機感④-○ / 価値⑤-○ / 事例⑥-○ / 出会い⑦-○ / 限定⑧-○ / 締め⑨-○ / 転換テク○+○
-
----kantei---
-
-（ここに鑑定文本文のみ。2,500〜3,000文字。マーカー不要。）`;
+鑑定文の本文のみを出力すること。
+判定結果・パーツ選択・マーカー等は一切出力しない。本文だけ。`;
 
 
-// ========================
-// STATE
-// ========================
-let currentReading = '';
-let currentJudgment = '';
-let isGenerating = false;
-const EMBEDDED_API_KEY = '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';
+// ============================================================
+// メイン: 自動生成トリガー（1件ずつ処理）
+// ============================================================
+function autoGenerate() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) { Logger.log('シートが見つかりません: ' + CONFIG.SHEET_NAME); return; }
 
-// ========================
-// INIT
-// ========================
-document.addEventListener('DOMContentLoaded', () => {
-  updateHistoryUI();
-});
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return; // ヘッダーのみ
 
-// ========================
-// API KEY (unused - embedded)
-// ========================
-async function testApiKey() {
-  const key = EMBEDDED_API_KEY;
-  const status = { textContent: '', style: {} };
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
-      headers: { 'Authorization': `Bearer ${key}` }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const credit = data.data?.limit_remaining != null ? `$${(data.data.limit_remaining / 100).toFixed(2)}` : '確認OK';
-    status.textContent = `接続成功 (残高: ${credit})`;
-    status.style.color = 'var(--success)';
-    saveApiKey();
-  } catch (e) {
-    status.textContent = `エラー: ${e.message}`;
-    status.style.color = 'var(--danger)';
-  }
-}
+  // K列が空の行を探す（2行目から）
+  const startRow = getStartRow_();
+  const readings = sheet.getRange(startRow, CONFIG.COL_READING, lastRow - startRow + 1, 1).getValues();
 
-// ========================
-// VALIDATION
-// ========================
-function validateInput(text) {
-  if (!text.trim()) return 'データを入力してください';
-  const hasName = /(?:お名前|名前)[\s\S]*?\n\s*(.+)/i.test(text) || text.includes('◯');
-  if (!hasName && text.length < 20) return '顧客データが短すぎます。エルメのフォーム回答を貼り付けてください。';
-  return null;
-}
-
-function extractName(text) {
-  const m = text.match(/(?:お名前|名前)[^\n]*\n\s*(.+)/);
-  if (m) return m[1].trim().replace(/[さんさま様]$/, '');
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  for (const line of lines) {
-    const cleaned = line.replace(/^◯\s*/, '').trim();
-    if (cleaned.length >= 1 && cleaned.length <= 10 && !/[0-9０-９年月日]/.test(cleaned)) return cleaned;
-  }
-  return '';
-}
-
-// ========================
-// GENERATE
-// ========================
-async function generate() {
-  if (isGenerating) return;
-  const apiKey = EMBEDDED_API_KEY;
-
-  const customerData = document.getElementById('customerData').value;
-  const err = validateInput(customerData);
-  if (err) { showToast(err); return; }
-
-  isGenerating = true;
-  const btn = document.getElementById('genBtn');
-  btn.disabled = true;
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('resultBox').style.display = 'none';
-  document.getElementById('qualityBox').style.display = 'none';
-  currentReading = '';
-  currentJudgment = '';
-
-  const userMessage = `=========\n${customerData}\n=========`;
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': location.href,
-      },
-      body: JSON.stringify({
-        model: 'anthropic/claude-sonnet-4.5',
-        messages: [
-          { role: 'system', content: META_PROMPT },
-          { role: 'user', content: userMessage }
-        ],
-        max_tokens: 8000,
-        temperature: 0.85,
-        stream: true
-      })
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      const msg = res.status === 401 ? 'APIキーが無効です' :
-                  res.status === 402 ? '残高不足です' :
-                  res.status === 429 ? 'レート制限です。少し待ってから再試行してください' :
-                  `APIエラー (${res.status}): ${errData.error?.message || ''}`;
-      throw new Error(msg);
+  for (let i = 0; i < readings.length; i++) {
+    if (readings[i][0] === '') {
+      const row = startRow + i;
+      processRow_(sheet, row);
+      return; // 1件処理したら終了（次のトリガーで次の行）
     }
-
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('resultBox').style.display = 'block';
-    const display = document.getElementById('readingDisplay');
-    display.textContent = '';
-    display.classList.add('streaming-cursor');
-
-    let fullText = '';
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
-        try {
-          const json = JSON.parse(data);
-          const token = json.choices?.[0]?.delta?.content;
-          if (token) {
-            fullText += token;
-            renderStreaming(fullText);
-          }
-        } catch {}
-      }
-    }
-
-    display.classList.remove('streaming-cursor');
-    parseResult(fullText);
-    runQualityChecks();
-    saveToHistory(customerData, fullText);
-
-  } catch (e) {
-    document.getElementById('loading').style.display = 'none';
-    showToast(e.message);
-  } finally {
-    isGenerating = false;
-    btn.disabled = false;
   }
+  Logger.log('未処理の行はありません');
 }
 
-// ========================
-// RENDER
-// ========================
-function renderStreaming(text) {
-  const display = document.getElementById('readingDisplay');
-  // During streaming, show only the reading part (after separator)
-  const parts = text.split('---kantei---');
-  const readingPart = parts.length > 1 ? parts[1].trimStart() : '';
-  const analysisPart = parts.length > 1 ? parts[0] : '';
 
-  if (readingPart) {
-    display.textContent = readingPart;
-    const count = readingPart.replace(/\s/g, '').length;
-    const el = document.getElementById('charCount');
-    el.textContent = `文字数: ${count.toLocaleString()}`;
-    el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : count > 0 ? 'ng' : '');
-  } else {
-    // Still in analysis phase - show waiting indicator
-    display.textContent = '分析中...';
-  }
-
-  // Update analysis memo live
-  if (analysisPart) {
-    const clean = analysisPart.replace(/【分析メモ】\s*/, '').trim();
-    document.getElementById('analysisContent').textContent = clean;
-  }
-
-  display.scrollTop = display.scrollHeight;
+// ============================================================
+// 指定行を手動生成（スプレッドシートのメニューから使う）
+// ============================================================
+function generateForSelectedRow() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const row = sheet.getActiveRange().getRow();
+  if (row < 2) { SpreadsheetApp.getUi().alert('データ行を選択してください'); return; }
+  processRow_(sheet, row);
+  SpreadsheetApp.getUi().alert(`${row}行目の鑑定文を生成しました`);
 }
 
-function parseResult(fullText) {
-  const parts = fullText.split('---kantei---');
-  if (parts.length > 1) {
-    currentJudgment = parts[0].replace(/【分析メモ】\s*/, '').trim();
-    currentReading = parts[1].trim();
-  } else {
-    currentJudgment = '';
-    currentReading = fullText.trim();
-  }
 
-  // Show analysis
-  if (currentJudgment) {
-    document.getElementById('analysisContent').textContent = currentJudgment;
-    document.getElementById('analysisBox').style.display = '';
-  } else {
-    document.getElementById('analysisBox').style.display = 'none';
-  }
+// ============================================================
+// 既存行をスキップ（初回セットアップ用）
+// ============================================================
+function skipExistingRows() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
 
-  // Show reading
-  const display = document.getElementById('readingDisplay');
-  display.innerHTML = formatReading(currentReading);
-  const count = currentReading.replace(/\s/g, '').length;
-  const el = document.getElementById('charCount');
-  el.textContent = `文字数: ${count.toLocaleString()}`;
-  el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : 'ng');
+  // 現在の最終行+1を開始行として保存
+  PropertiesService.getScriptProperties().setProperty('START_ROW', String(lastRow + 1));
+  SpreadsheetApp.getUi().alert(
+    `既存の${lastRow - 1}件をスキップしました。\n` +
+    `今後、${lastRow + 1}行目以降の新しいデータのみ自動生成されます。`
+  );
 }
 
-function formatReading(text) {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/✦・┈┈┈┈┈┈┈┈ ・✦/g, '<span class="separator">✦・┈┈┈┈┈┈┈┈ ・✦</span>');
+
+// ============================================================
+// 自動トリガーの設定/解除
+// ============================================================
+function setupAutoTrigger() {
+  // 既存トリガー削除
+  removeTriggers_();
+  // 5分間隔で autoGenerate を実行
+  ScriptApp.newTrigger('autoGenerate')
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+  SpreadsheetApp.getUi().alert('自動生成トリガーを設定しました（5分間隔）');
 }
 
-// ========================
-// QUALITY CHECKS
-// ========================
-function runQualityChecks() {
-  if (!currentReading) return;
-  const text = currentReading;
-  const textNoSpace = text.replace(/\s/g, '');
-  const checks = [];
-
-  // 1. Char count 2500-3000
-  const charCount = textNoSpace.length;
-  checks.push({
-    label: `文字数: ${charCount}`,
-    pass: charCount >= 2500 && charCount <= 3000,
-    detail: '2,500〜3,000文字'
-  });
-
-  // 2. Name mentions >= 5
-  const nameFromInput = extractName(document.getElementById('customerData').value);
-  let nameCount = 0;
-  if (nameFromInput) {
-    const re = new RegExp(nameFromInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-    nameCount = (text.match(re) || []).length;
-  }
-  checks.push({
-    label: `名前呼びかけ: ${nameCount}回`,
-    pass: nameCount >= 5,
-    detail: '5回以上'
-  });
-
-  // 3. Quoted text >= 3
-  const quotes = text.match(/「[^」]+」/g) || [];
-  checks.push({
-    label: `「」引用: ${quotes.length}箇所`,
-    pass: quotes.length >= 3,
-    detail: '3箇所以上'
-  });
-
-  // 4. Section separators = 8
-  const seps = (text.match(/✦・┈┈┈┈┈┈┈┈ ・✦/g) || []).length;
-  checks.push({
-    label: `区切り線: ${seps}箇所`,
-    pass: seps === 8,
-    detail: '8箇所'
-  });
-
-  // 5. Forbidden words
-  const forbidden = ['箇条書き', '──', '霊視', '確信です'];
-  const bulletCheck = /^[\s]*[・\-]\s/m.test(text);
-  const foundForbidden = forbidden.filter(w => text.includes(w));
-  if (bulletCheck) foundForbidden.push('箇条書き記号');
-  checks.push({
-    label: `禁止語: ${foundForbidden.length === 0 ? 'なし' : foundForbidden.join(', ')}`,
-    pass: foundForbidden.length === 0,
-    detail: '箇条書き / ── / 霊視 / 確信です'
-  });
-
-  // 6. Required phrase
-  const requiredPhrase = '私の役目は今の状態から少しでも良くするためにはどうするべきなのか';
-  checks.push({
-    label: `必須文言`,
-    pass: text.includes(requiredPhrase),
-    detail: '「私の役目は〜」'
-  });
-
-  // 7. CTA check
-  const ctaCheck = text.includes('深層鑑定希望');
-  checks.push({
-    label: `CTA（深層鑑定希望）`,
-    pass: ctaCheck,
-    detail: '「深層鑑定希望」を含む'
-  });
-
-  // 8. Gap description (本音/建前)
-  const gapPatterns = [/建前/, /本音/, /でも.*一人になった/, /けれど.*本当は/, /でも.*本当は/];
-  const gapCount = gapPatterns.filter(p => p.test(text)).length;
-  checks.push({
-    label: `ギャップ描写: ${gapCount >= 2 ? 'あり' : '不足'}`,
-    pass: gapCount >= 2,
-    detail: '本音と建前の描写2箇所'
-  });
-
-  // Render
-  const passCount = checks.filter(c => c.pass).length;
-  const summaryEl = document.getElementById('qualitySummary');
-  summaryEl.textContent = `品質チェック: ${passCount}/${checks.length} パス`;
-  summaryEl.className = 'quality-summary ' + (passCount === checks.length ? 'all-pass' : 'has-fail');
-
-  const inlineEl = document.getElementById('qualitySummaryInline');
-  inlineEl.textContent = `品質: ${passCount}/${checks.length}`;
-  inlineEl.style.color = passCount === checks.length ? 'var(--success)' : 'var(--danger)';
-
-  const grid = document.getElementById('qualityGrid');
-  grid.innerHTML = checks.map(c =>
-    `<div class="q-item ${c.pass ? 'pass' : 'fail'}">
-      <span class="q-icon">${c.pass ? '○' : '✕'}</span>
-      <span>${c.label}</span>
-      <span style="margin-left:auto;font-size:.7rem;opacity:.6">${c.detail}</span>
-    </div>`
-  ).join('');
+function removeAutoTrigger() {
+  removeTriggers_();
+  SpreadsheetApp.getUi().alert('自動生成トリガーを解除しました');
 }
 
-function toggleQuality() {
-  const box = document.getElementById('qualityBox');
-  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+
+// ============================================================
+// カスタムメニュー
+// ============================================================
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('鑑定ツール')
+    .addItem('選択行の鑑定文を生成', 'generateForSelectedRow')
+    .addSeparator()
+    .addItem('既存行をスキップ（初回のみ）', 'skipExistingRows')
+    .addItem('自動生成ON（5分間隔）', 'setupAutoTrigger')
+    .addItem('自動生成OFF', 'removeAutoTrigger')
+    .addToUi();
 }
 
-// ========================
-// COPY
-// ========================
-function copyReading() {
-  if (!currentReading) { showToast('コピーする鑑定文がありません'); return; }
-  navigator.clipboard.writeText(currentReading).then(() => {
-    showToast('コピーしました');
-  }).catch(() => {
-    // Fallback
-    const ta = document.createElement('textarea');
-    ta.value = currentReading;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    showToast('コピーしました');
-  });
+
+// ============================================================
+// 内部関数
+// ============================================================
+
+function getStartRow_() {
+  const saved = PropertiesService.getScriptProperties().getProperty('START_ROW');
+  return saved ? Number(saved) : 2;
 }
 
-// ========================
-// HISTORY
-// ========================
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('kantei_history') || '[]'); }
-  catch { return []; }
-}
+function processRow_(sheet, row) {
+  const name  = sheet.getRange(row, CONFIG.COL_NAME).getValue();
+  const birth = sheet.getRange(row, CONFIG.COL_BIRTH).getValue();
+  const worry = sheet.getRange(row, CONFIG.COL_WORRY).getValue();
+  const ideal = sheet.getRange(row, CONFIG.COL_IDEAL).getValue();
 
-function saveToHistory(input, fullText) {
-  const name = extractName(input);
-  const j = currentJudgment;
-  const typeM = j.match(/感情タイプ:\s*(.+)/);
-  const catM = j.match(/カテゴリ:\s*(.+)/);
-  const patM = j.match(/構成パターン:\s*(.+)/);
-
-  const entry = {
-    id: Date.now(),
-    date: new Date().toLocaleString('ja-JP'),
-    name: name || '不明',
-    type: typeM ? typeM[1].trim() : '-',
-    category: catM ? catM[1].trim() : '-',
-    pattern: patM ? patM[1].trim() : '-',
-    reading: currentReading,
-    judgment: currentJudgment,
-    input: input.substring(0, 500)
-  };
-
-  const history = getHistory();
-  history.unshift(entry);
-  if (history.length > 100) history.pop();
-  localStorage.setItem('kantei_history', JSON.stringify(history));
-  updateHistoryUI();
-}
-
-function updateHistoryUI() {
-  const history = getHistory();
-  document.getElementById('historyCount').textContent = `${history.length}件`;
-
-  if (history.length === 0) {
-    document.getElementById('historyToggle').style.display = 'none';
+  // バリデーション
+  if (!name || !worry) {
+    sheet.getRange(row, CONFIG.COL_STATUS).setValue('スキップ（データ不足）');
     return;
   }
-  document.getElementById('historyToggle').style.display = 'flex';
 
-  // Stats
-  const patterns = {};
-  const categories = {};
-  history.forEach(h => {
-    patterns[h.pattern] = (patterns[h.pattern] || 0) + 1;
-    categories[h.category] = (categories[h.category] || 0) + 1;
-  });
-
-  const statsHtml = `<h4>パターン別統計</h4><div class="stat-grid">
-    ${Object.entries(patterns).map(([k, v]) => `<div class="stat-item"><div class="stat-num">${v}</div><div class="stat-label">${k}</div></div>`).join('')}
-  </div>`;
-  document.getElementById('historyStats').innerHTML = statsHtml;
-
-  // List
-  const listHtml = history.map(h => `
-    <div class="history-item">
-      <div class="history-item-main" onclick="loadHistory(${h.id})">
-        <div class="history-meta"><span>${h.date}</span><span>${h.type}</span></div>
-        <div class="history-name">${escHtml(h.name)}</div>
-        <div class="history-pattern">${h.pattern} / ${h.category}</div>
-      </div>
-      <button class="history-delete" onclick="event.stopPropagation();deleteHistory(${h.id})">×</button>
-    </div>
-  `).join('');
-  document.getElementById('historyList').innerHTML = listHtml;
-}
-
-function deleteHistory(id) {
-  const history = getHistory().filter(h => h.id !== id);
-  localStorage.setItem('kantei_history', JSON.stringify(history));
-  updateHistoryUI();
-  showToast('削除しました');
-}
-
-function toggleHistory() {
-  const sec = document.getElementById('historySection');
-  sec.style.display = sec.style.display === 'none' || !sec.style.display ? 'block' : 'none';
-}
-
-function loadHistory(id) {
-  const history = getHistory();
-  const entry = history.find(h => h.id === id);
-  if (!entry) return;
-
-  currentReading = entry.reading;
-  currentJudgment = entry.judgment || '';
-
-  document.getElementById('resultBox').style.display = 'block';
-
-  // Analysis memo
-  if (currentJudgment) {
-    document.getElementById('analysisContent').textContent = currentJudgment;
-    document.getElementById('analysisBox').style.display = '';
-  } else {
-    document.getElementById('analysisBox').style.display = 'none';
+  // 生年月日のフォーマット
+  let birthStr = '';
+  if (birth instanceof Date) {
+    birthStr = Utilities.formatDate(birth, 'Asia/Tokyo', 'yyyy年M月d日');
+  } else if (birth) {
+    birthStr = String(birth);
   }
 
-  const display = document.getElementById('readingDisplay');
-  display.innerHTML = formatReading(currentReading);
+  // 顧客データ組み立て
+  const customerData = [
+    '◯ お名前',
+    name,
+    '',
+    '◯ 生年月日をご入力ください',
+    birthStr,
+    '',
+    '◯ 現在のお悩み（※詳細にお書きください）',
+    worry,
+    '',
+    '◯ 理想の未来とは？（※詳細にお書きください）',
+    ideal,
+  ].join('\n');
 
-  const count = currentReading.replace(/\s/g, '').length;
-  const el = document.getElementById('charCount');
-  el.textContent = `文字数: ${count.toLocaleString()}`;
-  el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : 'ng');
+  const userMessage = '=========\n' + customerData + '\n=========';
 
-  runQualityChecks();
-  document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth' });
+  // ステータス更新
+  sheet.getRange(row, CONFIG.COL_STATUS).setValue('生成中...');
+  SpreadsheetApp.flush();
+
+  try {
+    const reading = callOpenRouterAPI_(userMessage);
+    sheet.getRange(row, CONFIG.COL_READING).setValue(reading);
+    sheet.getRange(row, CONFIG.COL_STATUS).setValue(
+      Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm')
+    );
+    Logger.log(`行${row} 生成完了: ${name} (${reading.length}文字)`);
+  } catch (e) {
+    sheet.getRange(row, CONFIG.COL_STATUS).setValue('エラー: ' + e.message);
+    Logger.log(`行${row} エラー: ${e.message}`);
+  }
 }
 
-// ========================
-// UTILS
-// ========================
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+function callOpenRouterAPI_(userMessage) {
+  const payload = {
+    model: CONFIG.MODEL,
+    messages: [
+      { role: 'system', content: META_PROMPT },
+      { role: 'user', content: userMessage }
+    ],
+    max_tokens: CONFIG.MAX_TOKENS,
+    temperature: CONFIG.TEMPERATURE,
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + CONFIG.API_KEY,
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  };
+
+  const response = UrlFetchApp.fetch('https://openrouter.ai/api/v1/chat/completions', options);
+  const code = response.getResponseCode();
+
+  if (code !== 200) {
+    const body = response.getContentText();
+    throw new Error(`API ${code}: ${body.substring(0, 200)}`);
+  }
+
+  const json = JSON.parse(response.getContentText());
+  const content = json.choices[0].message.content;
+
+  return content.trim();
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function removeTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'autoGenerate') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
 }
-</script>
-</body>
-</html>
