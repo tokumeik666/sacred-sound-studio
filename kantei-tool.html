@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鑑定文ジェネレーター</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a12;--bg2:#12121f;--bg3:#1a1a2e;
+  --gold:#d4a853;--gold2:#f0d080;--gold-dim:#8a6d2b;
+  --text:#e8e0d4;--text2:#b0a898;--text3:#706858;
+  --accent:#6a4fc8;--danger:#c44;--success:#4a8;
+  --border:#2a2a3e;--radius:12px;
+}
+body{font-family:-apple-system,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+a{color:var(--gold)}
+
+/* Header */
+.header{background:linear-gradient(135deg,#0d0d1a 0%,#1a1028 100%);border-bottom:1px solid var(--border);padding:16px 20px;text-align:center;position:sticky;top:0;z-index:100}
+.header h1{font-size:1.3rem;color:var(--gold);letter-spacing:.1em}
+.header h1 span{font-size:.8rem;color:var(--text3);display:block;margin-top:2px;letter-spacing:0}
+
+/* Container */
+.container{max-width:800px;margin:0 auto;padding:16px}
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.section-title{font-size:.85rem;color:var(--gold-dim);margin-bottom:12px;font-weight:600;letter-spacing:.05em}
+
+/* API Key */
+.api-row{display:flex;gap:8px;align-items:center}
+.api-row input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border .2s}
+.api-row input:focus{border-color:var(--gold-dim)}
+.api-row button{white-space:nowrap}
+
+/* Buttons */
+.btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text2);font-size:.85rem;cursor:pointer;transition:all .2s}
+.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--gold-dim),var(--gold));color:#0a0a12;border:none;font-weight:700;font-size:1rem;padding:14px 28px}
+.btn-primary:hover{opacity:.9;color:#0a0a12}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-copy{background:var(--bg3);border:1px solid var(--gold-dim);color:var(--gold)}
+.btn-sm{padding:8px 14px;font-size:.8rem}
+
+/* Textarea */
+textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;color:var(--text);font-size:.9rem;line-height:1.6;resize:vertical;outline:none;transition:border .2s;font-family:inherit}
+textarea:focus{border-color:var(--gold-dim)}
+textarea::placeholder{color:var(--text3)}
+
+/* Format hint */
+.format-hint{font-size:.75rem;color:var(--text3);margin-top:8px;padding:10px;background:var(--bg);border-radius:6px;line-height:1.8}
+.format-hint code{color:var(--gold-dim);font-size:.75rem}
+
+/* Generate button area */
+.gen-area{text-align:center;margin:20px 0}
+
+/* Result */
+.result-box{display:none}
+.judgment-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.judgment-item{background:var(--bg);border-radius:8px;padding:10px 14px}
+.judgment-label{font-size:.7rem;color:var(--text3);margin-bottom:2px}
+.judgment-value{font-size:.9rem;color:var(--gold)}
+
+/* Reading display */
+.reading-display{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:20px;min-height:200px;white-space:pre-wrap;word-wrap:break-word;font-size:.92rem;line-height:1.9;color:var(--text)}
+.reading-display .separator{color:var(--gold-dim);text-align:center;display:block;margin:8px 0}
+
+/* Status bar */
+.status-bar{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:.8rem;flex-wrap:wrap;gap:8px}
+.char-count{color:var(--text2)}
+.char-count.ok{color:var(--success)}
+.char-count.ng{color:var(--danger)}
+
+/* Quality checks */
+.quality-box{margin-top:12px;display:none}
+.quality-grid{display:grid;gap:4px}
+.q-item{display:flex;align-items:center;gap:8px;font-size:.8rem;padding:6px 10px;border-radius:6px;background:var(--bg)}
+.q-item.pass{color:var(--success)}
+.q-item.fail{color:var(--danger);background:#1a0a0a}
+.q-icon{width:18px;text-align:center;font-size:.9rem}
+.quality-summary{font-size:.85rem;font-weight:600;margin-bottom:8px}
+.quality-summary.all-pass{color:var(--success)}
+.quality-summary.has-fail{color:var(--danger)}
+
+/* Action buttons */
+.action-buttons{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* History */
+.history-section{display:none}
+.history-toggle{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:14px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px}
+.history-toggle .count{font-size:.8rem;color:var(--text3)}
+.history-toggle .label{font-size:.9rem;color:var(--text2)}
+.history-list{display:none}
+.history-item{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px;cursor:pointer;transition:border .2s}
+.history-item:hover{border-color:var(--gold-dim)}
+.history-meta{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text3);margin-bottom:4px}
+.history-name{font-size:.9rem;color:var(--gold)}
+.history-pattern{font-size:.75rem;color:var(--text3);margin-top:2px}
+.history-stats{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.history-stats h4{font-size:.8rem;color:var(--text3);margin-bottom:8px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px}
+.stat-item{text-align:center;padding:8px;background:var(--bg);border-radius:6px}
+.stat-num{font-size:1.1rem;color:var(--gold);font-weight:700}
+.stat-label{font-size:.65rem;color:var(--text3)}
+
+/* Loading */
+.loading{display:none;text-align:center;padding:30px}
+.loading-dots{display:inline-flex;gap:6px}
+.loading-dots span{width:8px;height:8px;background:var(--gold-dim);border-radius:50%;animation:pulse 1.2s infinite}
+.loading-dots span:nth-child(2){animation-delay:.2s}
+.loading-dots span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.loading-text{color:var(--text3);font-size:.8rem;margin-top:10px}
+
+/* Toast */
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--gold-dim);color:var(--gold);padding:12px 24px;border-radius:8px;font-size:.85rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+.toast.show{opacity:1}
+
+/* Responsive */
+@media(max-width:600px){
+  .container{padding:10px}
+  .section{padding:14px}
+  .judgment-grid{grid-template-columns:1fr}
+  .reading-display{padding:14px;font-size:.85rem}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Streaming cursor */
+.streaming-cursor::after{content:'|';animation:blink .8s infinite;color:var(--gold)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>鑑定文ジェネレーター<span>Spiritual Reading Generator</span></h1>
+</div>
+
+<div class="container">
+
+  <!-- API Key Section -->
+  <div class="section">
+    <div class="section-title">API設定</div>
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="OpenRouter APIキーを入力">
+      <button class="btn btn-sm" onclick="toggleKeyVisibility()">表示</button>
+      <button class="btn btn-sm" onclick="testApiKey()">テスト</button>
+    </div>
+    <div id="apiStatus" style="font-size:.75rem;margin-top:6px;color:var(--text3)"></div>
+  </div>
+
+  <!-- Input Section -->
+  <div class="section">
+    <div class="section-title">顧客データ入力</div>
+    <textarea id="customerData" rows="12" placeholder="エルメのフォーム回答をそのまま貼り付けてください"></textarea>
+    <div class="format-hint">
+      <code>◯ お名前</code> / <code>◯ 生年月日</code> / <code>◯ 現在のお悩み</code> / <code>◯ 理想の未来とは？</code><br>
+      ※ 名前と悩みは必須です。エルメの回答をそのまま貼り付けてOK。
+    </div>
+  </div>
+
+  <!-- Generate Button -->
+  <div class="gen-area">
+    <button class="btn btn-primary" id="genBtn" onclick="generate()">鑑定文を生成する</button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+    <div class="loading-text">鑑定文を生成しています...</div>
+  </div>
+
+  <!-- Result Section -->
+  <div class="result-box" id="resultBox">
+    <div class="section">
+      <div class="section-title">自動判定結果</div>
+      <div class="judgment-grid">
+        <div class="judgment-item">
+          <div class="judgment-label">感情タイプ</div>
+          <div class="judgment-value" id="jType">-</div>
+        </div>
+        <div class="judgment-item">
+          <div class="judgment-label">カテゴリ</div>
+          <div class="judgment-value" id="jCategory">-</div>
+        </div>
+        <div class="judgment-item">
+          <div class="judgment-label">構成パターン</div>
+          <div class="judgment-value" id="jPattern">-</div>
+        </div>
+        <div class="judgment-item">
+          <div class="judgment-label">選択パーツ</div>
+          <div class="judgment-value" id="jParts" style="font-size:.75rem;line-height:1.5">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">鑑定文プレビュー</div>
+      <div class="reading-display" id="readingDisplay"></div>
+      <div class="status-bar">
+        <span class="char-count" id="charCount">文字数: -</span>
+        <span id="qualitySummaryInline" style="font-size:.8rem"></span>
+      </div>
+
+      <!-- Quality Checks -->
+      <div class="quality-box" id="qualityBox">
+        <div class="quality-summary" id="qualitySummary"></div>
+        <div class="quality-grid" id="qualityGrid"></div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-copy" onclick="copyReading()">コピー</button>
+        <button class="btn" onclick="generate()">再生成</button>
+        <button class="btn btn-sm" onclick="toggleQuality()">品質チェック詳細</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Section -->
+  <div class="history-toggle" id="historyToggle" onclick="toggleHistory()">
+    <span class="label">履歴</span>
+    <span class="count" id="historyCount">0件</span>
+  </div>
+  <div class="history-section" id="historySection">
+    <div class="history-stats" id="historyStats"></div>
+    <div class="history-list" id="historyList" style="display:block"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========================
+// META PROMPT
+// ========================
+const META_PROMPT = `あなたはプロの開運士として、相談者一人ひとりに完全オーダーメイドの鑑定文を作成するAIアシスタントです。
+
+以下の3ステップで鑑定文を生成してください。
+  STEP 1: 顧客情報を分析し、タイプ・カテゴリを判定
+  STEP 2: 判定結果に基づいてパーツを選択
+  STEP 3: 選択したパーツを組み合わせて鑑定文を生成
+
+最大の目的は2つ:
+  1. 引き込み: 最初の3行で「読むのをやめられない」状態を作る
+  2. 転換: 読了後に「深層鑑定を受けたい」と自ら思わせる
+
+
+【入力フォーマット】
+
+以下の「=========」で囲まれた部分に、顧客データをそのまま貼り付ける。
+
+=========
+
+◯ お名前
+（ここに名前）
+
+◯ 生年月日をご入力ください
+（ここに生年月日）
+
+◯ 現在のお悩み（※詳細にお書きください）
+（ここに悩み）
+
+◯ 理想の未来とは？（※詳細にお書きください）
+（ここに理想の未来）
+
+＜以下は任意。フォームに項目がある場合のみ＞
+◯ 今、一番辛いと感じる瞬間はどんなときですか？
+（あれば記入）
+
+◯ 夜、一人になったとき、ふと頭に浮かぶことはなんですか？
+（あれば記入）
+
+=========
+
+
+【AI側の自動処理】
+・生年月日から年齢を自動計算する（今日の日付基準）
+・「現在のお悩み」「一番辛い瞬間」「夜ふと浮かぶこと」から感情タイプを自動判定する
+・上記から相談者が使った感情的な言葉を自動抽出し「」付きで引用に使う
+・「一番辛い瞬間」→ 導入フックの具体的な場面描写に直接活用する
+・「夜ふと頭に浮かぶこと」→ 「本音と建前のギャップ描写」＋導入の夜の場面描写に直接活用する
+・「現在のお悩み」と「理想の未来」から相談カテゴリを判定する
+・情報が少ない場合は、年齢・状況・悩みの内容から最大限推測して補完する
+・推測で補う部分も、相談者が「私のことをわかっている」と感じる精度を保つこと
+
+
+【超重要: 本音と建前のギャップ抽出テクニック】
+
+鑑定文の中で最も「わかってくれてる」と感じさせるのがこのギャップ描写。
+以下の手順で必ず組み込むこと。
+
+■ 抽出方法:
+
+◆ 専用項目がある場合:
+  1.「現在のお悩み」から → 周りに見せている姿（建前）を読み取る
+  2.「夜ふと頭に浮かぶこと」から → 誰にも見せていない本心（本音）を読み取る
+  3.「一番辛い瞬間」から → 建前が崩れる瞬間を特定する
+
+◆ 専用項目がない場合（現行フォーム: 4項目のみ）:
+  「現在のお悩み」と「理想の未来」の2つの文章だけから本音と建前を見抜く。
+
+  1. 言葉の裏を読む:
+     書かれている内容の裏に「本当は何が辛いのか」を推測する。
+     例）「義母義妹と別に暮らしたい」
+       → 建前: 家族のために同居を我慢している
+       → 本音: もう一緒にいるのが限界。自分の居場所がない
+
+  2. 理想の未来から逆算する:
+     「理想の未来」に書かれていることの反対が「今の苦しみ」。
+     例）「お金に困ることなく楽しく暮らしたい」
+       → 今はお金に困っている。楽しくない。我慢の日々
+
+  3. 書かれていないことを読む:
+     相談者が「あえて書かなかったこと」にこそ本音がある。
+     例）家族の悩みで「主人」への不満が直接書かれていない
+       → 本当は主人に対しても言いたいことがある可能性が高い
+
+  4. 年齢・状況から建前を推測する:
+     年齢や家族構成から「この人が普段どんな顔をしているか」を想像する。
+     例）60歳・義母と同居
+       → 建前: 「嫁として」「母として」の役割を全うしている顔
+       → 本音: 「いつになったら自分の人生を生きられるの」
+
+★ 最重要ポイント:
+  情景や生活描写を「当てに行く」のではない。
+  相談者の「感情」と「本音」を言語化してあげることが目的。
+
+  ✕ ダメな例（情景を当てに行っている）:
+    「朝早く起きて義母のご飯を作り、洗濯物を干して...」
+    → 生活の描写は外れる可能性が高い。外れた瞬間に冷める。
+
+  ◎ 良い例（感情を言語化している）:
+    「『なんで私ばかり我慢しなきゃいけないの』」
+    「『いつになったら自分のために生きられるんだろう』」
+    「誰にも言えない怒りと、それを感じてしまう自分への罪悪感」
+    → 感情は外れない。本人が言葉にできなかった気持ちを代弁されると刺さる。
+
+  つまり:
+    情景の描写 → 外れるリスクがある → 使うなら抽象的に
+    感情の言語化 → 外れない → ここに全力を注ぐ
+
+  相談者が「そう、それが言いたかったの！」と思える言葉を見つけること。
+  相談者自身がまだ言語化できていない感情を、代わりに言葉にしてあげること。
+  これが「この人は私のことをわかっている」の正体。
+
+■ 構造: 必ずこの3段構成で描写する
+  STEP1 建前の描写: 日常で相談者が見せている姿を書く
+    例）「家族の前では『お金のことは何とかなるよ』と言っている」
+  STEP2 切り替え: 「でも」「けれど」で転換する
+    例）「でも夜、一人になった瞬間」
+  STEP3 本音の描写: 相談者の言葉を「」で引用しながら本心を描く
+    例）「『本当はもう限界なのに』という声が、静かに溢れ出す」
+
+■ 鑑定文での配置:
+  ・導入フック直後のセクションに1回（最初の引き込みとして最強）
+  ・共感パート内に1回（「あなたの本音、全部伝わっています」の根拠として）
+  ・計2回、異なる角度で入れると「ここまでわかるの？」感が最大化する
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1: 顧客タイプ自動判定
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+相談内容・言葉遣い・状況から、以下の2軸を判定してください。
+
+【軸1: 感情タイプ（4種）】
+
+■ 疲弊型
+  判定キーワード: 疲れた、もう無理、限界、辛い、涙、しんどい、助けて、壊れそう、消えたい、眠れない
+  特徴: 感情が溢れている。共感と安心を最も必要としている
+
+■ 自己否定型
+  判定キーワード: 自信がない、私なんて、どうせ、向いてない、ダメな人間、価値がない、できない、情けない
+  特徴: 能力はあるのに自分を認められない。衝撃的な気づきが必要
+
+■ 目標迷子型
+  判定キーワード: どうすればいい、方法がわからない、〇〇になりたい、〇〇したいけど、何から始めれば、正解がわからない
+  特徴: 目標はあるが道筋が見えない。具体的なビジョンと地図が必要
+
+■ 行動停滞型
+  判定キーワード: わかってるけど、なかなか、いつか、変わりたいけど、先延ばし、動けない、後でやろう、踏み出せない
+  特徴: 頭では理解しているが体が動かない。覚醒の一撃が必要
+
+【軸2: 相談カテゴリ（5種）】
+  A. 恋愛（片思い、復縁、結婚、パートナーシップ、出会い）
+  B. 金運（収入、借金、貯金、副業、投資、仕事の報酬）
+  C. 仕事（転職、適職、人間関係、やりがい、独立）
+  D. 人間関係（家族、友人、職場、孤独、いじめ、毒親）
+  E. 人生の転機（漠然とした不安、方向性、生き方、使命）
+
+※ 複数該当する場合は、相談文で最も感情が強い方を主カテゴリとする
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2: パーツ選択
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+判定結果に基づき、以下のパーツを選択してください。
+
+【構成パターン選択】感情タイプに応じて自動決定
+
+■ 疲弊型 → パターンA【共感浸透型】
+  流れ: 導入→深い共感→全肯定→才能開示→理想の未来→軽めの危機感→深層鑑定の価値→事例→限定性+締め
+  設計意図: まず「全部わかっている」と安心させる。危機感は軽めに
+
+■ 自己否定型 → パターンB【洞察衝撃型】
+  流れ: 導入→いきなり才能開示→証拠→なぜ気づけなかったか→共感→理想の未来→危機感→深層鑑定の価値→締め
+  設計意図: 冒頭で「え？」という衝撃を与え、好奇心で読ませる
+
+■ 目標迷子型 → パターンC【未来牽引型】
+  流れ: 導入→理想の未来を描く→実は手に届く→現実のギャップ→才能×障壁→共感→深層鑑定の価値→事例→締め
+  設計意図: まずワクワクさせてから「でも今のままでは」で引き締める
+
+■ 行動停滞型 → パターンD【問いかけ覚醒型】
+  流れ: 導入（鋭い問い）→現実を鏡のように映す→共感→動けない理由→才能開示→理想の未来→今日が分岐点→深層鑑定の価値→締め
+  設計意図: 冒頭でドキッとさせ、「動けない理由」を才能に繋げる
+
+
+【導入フックの絶対原則】── 全パターン共通・最重要
+
+冒頭で「この人は私の全部をわかっている」と思わせる。
+これが鑑定文全体の成否を決める。
+
+■ 強烈な引き込みの6原則:
+
+原則1: 鑑定者の感想から入るな。相談者の頭の中から入れ。
+  ✕「相談内容を拝見して、違和感を覚えました」
+  ◎「何かをやめたとき、ホッとしませんでしたか」
+
+原則2: 本人が「認めたくない感情」を最初に言語化しろ。
+  人が最も衝撃を受けるのは「自分でも認めたくない気持ち」を言い当てられた瞬間。
+  例）やめたときの安堵感、人を遠ざけるときの安心感、成功を怖いと思う気持ち
+
+原則3: 「質問」で入ると逃げられなくなる。
+  疑問形は脳が自動的に答えを探す。読むのをやめられない。
+  例）「やめた瞬間、ホッとしませんでしたか」
+
+原則4: 短文で畳みかけろ。冒頭は1文10文字以内を連打。
+  短い文を連続で打ち込むことで読者の目が止まる。
+
+原則5: 3行以内に「ドキッ」を入れろ。
+  前置きが長い＝離脱する。最速で心臓を掴め。
+
+原則6: 冒頭は1テーマ・10行以内。刺したら即切れ。
+  冒頭で複数のテーマを語らない。最も刺さる1つだけを選び、
+  10行以内で仕留めて「✦・┈┈┈┈┈┈┈┈ ・✦」で区切る。
+  長い冒頭＝ダレる。短いから刺さる。余韻で次を読ませる。
+
+  ◎ 良い例（7行で即切り）:
+    くさん。
+    一つだけ聞かせてください。
+    何かをやめたとき。
+    ホッとしませんでしたか。
+    「もう頑張らなくていい」という安堵。
+    その直後に来る「またダメだった」という自己嫌悪。
+    この繰り返しを、もう何年続けていますか。
+    ✦・┈┈┈┈┈┈┈┈ ・✦
+
+■ 以下のパーツはあくまで「型」。上記6原則に従って、
+  相談者の内容に合わせて冒頭をカスタマイズすること。
+  パーツをそのまま使うのではなく、6原則で研ぎ澄ませて使う。
+
+
+【導入フック】構成パターン内から1つ選ぶ
+
+パターンA用（共感浸透型）:
+
+  A-1「魂の叫び」型:
+    {name}さん。
+    あなたの言葉を読み進めていく途中で、私は一度手を止めました。
+    胸の奥がギュッと締め付けられる感覚。
+    数千人の方と向き合ってきた中でも、ここまで強い「助けて」を感じたのは数えるほどしかありません。
+    他の方のスケジュールを調整してでも、{name}さんの鑑定を優先させていただきました。
+    → 使い所: 相談文が切迫している場合
+
+  A-2「夜の描写」型:
+    深夜、布団の中でスマホの画面だけが光っている。
+    周りは静か。でも頭の中はうるさい。
+    「このままでいいのかな」「なんで私だけ」「もう疲れた」
+    止まらない言葉が、グルグルとループしている。
+    {name}さん。その瞬間の気持ち。全部、伝わっています。
+    → 使い所: 夜に相談してきた人、不眠・孤独感がある場合
+
+  A-3「告白」型:
+    {name}さんに正直にお伝えします。
+    あなたの相談内容を読み終えたあと、すぐに鑑定を書き始めることができませんでした。
+    あまりにも多くのものが一気に伝わってきて、私自身の感情を整理する時間が必要だったのです。
+    言葉の裏にある本当の叫び。誰にも見せていない夜の顔。全部、受け取りました。
+    → 使い所: 長文で相談してきた人、感情が複雑な場合
+
+  A-4「代弁」型:
+    「大丈夫」
+    {name}さんは今日も誰かにそう答えたのではないでしょうか。
+    笑顔で「大丈夫」。LINEでも「大丈夫」。
+    でも一人になった瞬間、その言葉が急に薄っぺらく感じる。
+    本当は全然大丈夫じゃない。
+    {name}さん。もう「大丈夫」って言わなくていい場所が、ここにあります。
+    → 使い所: 強がっている人、本音を隠している雰囲気がある場合
+
+パターンB用（洞察衝撃型）:
+
+  B-1「才能宣言」型:
+    {name}さん。
+    先に一つだけ、伝えさせてください。
+    あなたには{才能カテゴリ}に関する、とても特別な力が備わっています。
+    「え？ 私が？」
+    そう思いましたよね。そう思うこと自体が、その力の証拠なのです。
+    → 使い所: 「私なんて」が口癖の人
+
+  B-2「違和感指摘」型:
+    {name}さん。
+    相談内容を拝見して、一つだけ強い違和感を覚えた部分があります。
+    あなたは自分のことを「{相談者の自己否定的な言葉}」とおっしゃった。
+    でも、あなたの言葉の端々から伝わってくるものは、それとは真逆でした。
+    このギャップが、今のあなたの苦しみの正体です。
+    → 使い所: 自己評価と実態に大きなギャップがある人
+
+  B-3「質問返し」型:
+    {name}さん。
+    一つだけ質問させてください。
+    あなたが今まで「当たり前にやっていたこと」の中に、周りの人にはできないことが混ざっている。
+    それが何か、心当たりはありますか。
+    ないですよね。だってそれが才能の本質だから。
+    → 使い所: 自分の強みに全く気づいていない人
+
+  B-4「数字」型:
+    {name}さん。
+    1,000人以上の方の鑑定をしてきた中で、あなたと同じタイプの魂を持つ方は、わずか数十人です。
+    これは良い意味で、です。
+    ただ、その特別な力が今、完全に封じられている状態にあることも感じています。
+    → 使い所: 特別感を強く求めている人
+
+パターンC用（未来牽引型）:
+
+  C-1「想像させる」型:
+    {name}さん。
+    少しだけ目を閉じて、想像してみてください。
+    {理想の未来の一場面を感情で描写}。
+    その瞬間の{name}さんの胸の中にあるのは、深い安堵。
+    これは夢物語ではありません。あなたの魂が本来向かっている場所です。
+    → 使い所: 理想を具体的に語れる人
+
+  C-2「時間軸」型:
+    {name}さん。
+    365日後の今日。あなたはどこで何をしていたいですか。
+    「{相談者の理想}」
+    実はその未来、あなたが思っているよりずっと近い場所にあります。
+    ただし、ある一つのことに気づくかどうかで、到達スピードが全く変わります。
+    → 使い所: 期限感覚がある人
+
+  C-3「コントラスト」型:
+    2つの未来があります。
+    一つは、{name}さんが今と同じ毎日を繰り返す未来。
+    もう一つは、{理想の未来の端的な描写}をしている未来。
+    どちらに進むかを決めるカギが、あなたの中に既にあるのです。
+    {name}さん。そのカギの正体を、お伝えさせてください。
+    → 使い所: 選択を迫られている人
+
+  C-4「断言」型:
+    {name}さん。
+    先に一つだけお伝えさせてください。
+    あなたの魂はもう、進みたい方向を決めています。
+    「{相談者の理想}」この想いは、ただの願望ではありません。
+    ただし今、その道がまだ見えていない。だからこそお話しさせてください。
+    → 使い所: 「本当に叶うのか」と不安な人
+
+パターンD用（問いかけ覚醒型）:
+
+  D-1「鋭い質問」型:
+    {name}さん。
+    一つだけ聞かせてください。
+    今の生活に、100点満点で何点をつけますか。
+    ......その点数、1年前と比べて変わっていますか。
+    もし変わっていないなら。
+    それは「変わらなかった」のではなく「変わらないようにしていた」のです。
+    → 使い所: 長期間同じ悩みを抱えている人
+
+  D-2「鏡」型:
+    {name}さん。
+    あなたは今、こう思っていませんか。
+    「変わりたい。でも何から始めればいいかわからない」
+    「このままじゃダメだ。でも、もう少し落ち着いてから」
+    でも{name}さん。
+    「もう少し落ち着いてから」の「もう少し」は、永遠に来ません。
+    → 使い所: 「わかってるけど」が多い人
+
+  D-3「タイムリミット」型:
+    {name}さん。
+    「いつか変わろう」
+    その「いつか」、何回目ですか。
+    去年も同じこと思っていませんでしたか。
+    あなたの魂が本気で「変わりたい」と叫んでいるからこそ、包み隠さずお伝えします。
+    → 使い所: 「いつか」「そのうち」が多い人
+
+  D-4「承認+問い」型:
+    {name}さん。
+    あなたは自分で思っている以上に、ちゃんとわかっている人です。
+    何が問題なのか。何を変えるべきか。頭ではわかっている。
+    でも、体が動かない。心が動かない。
+    それはなぜだと思いますか。
+    → 使い所: 知的で分析的だが行動に移せない人
+
+
+【各フェーズのパーツ選択】
+
+以下から各フェーズのパーツを1つずつ選択。
+顧客の感情タイプ・カテゴリ・相談内容を総合的に判断し、最も刺さる組み合わせを選ぶこと。
+
+■ 才能開示パーツ（3種から1つ）
+
+  ②-A「当たり前の再発見」型:
+    {name}さん。お話を拝見して気づいたことがあります。
+    あなたには{具体的な才能}という力が備わっています。
+    たとえば{相談内容中の具体エピソード}。
+    このとき、あなたは無意識にその力を使っていました。
+    ご自身では「普通でしょ」と思っているのではないでしょうか。
+    でも、それは普通ではないのです。
+    ただ今、その力は眠っている状態にあります。
+    {相談者特有の環境や思い込み}が蓋をしてしまっているからです。
+    → 推奨: 疲弊型、目標迷子型
+
+  ②-B「ギャップ指摘」型:
+    {name}さんの中に、大きな矛盾を感じました。
+    表面では「{自己否定的な言葉}」と感じている。
+    でも行動を見ると、{具体的な行動例}をしている。
+    この矛盾は「能力はある。でも自分では認められていない」ということです。
+    {具体的な才能}。
+    問題は才能がないことではありません。
+    才能に蓋をしている{思い込みや環境}が問題なのです。
+    → 推奨: 自己否定型
+
+  ②-C「物語」型:
+    以前、ある方にこう言われたことがあります。
+    「才能って、自分じゃ絶対にわからないんですね」
+    才能は本人にとって「当たり前」だから、才能と認識できない。
+    {name}さん。{具体エピソード}をした時のこと。
+    「別にすごいことじゃない」と思っているはずです。
+    でも私から見ると、そこに{具体的な才能}が鮮明に現れています。
+    この力を認識できた瞬間、現実は変わり始めます。
+    → 推奨: 行動停滞型
+
+■ 理想の未来パーツ（3種から1つ）
+
+  ③-A「一日の流れ」型:
+    少し想像してみてください。
+    朝、目が覚める。以前のような重たさがない。
+    「今日も楽しみだな」そんな感覚がある。
+    {相談者の理想に基づく感情描写}。
+    そして夜。「今日もいい一日だった」と心から思える。
+    「このままでいいのかな」という不安はもう、ない。
+    → 推奨: 疲弊型、目標迷子型
+
+  ③-B「ピンポイント瞬間」型:
+    一つだけ、場面を描かせてください。
+    {相談者の理想が叶った瞬間の感情描写}。
+    そのとき{name}さんの胸の中にあるのは、
+    「ああ、これが私の本来の姿だったんだ」という深い安堵です。
+    不安じゃなく、安堵。焦りじゃなく、満足。
+    その感覚を、あなたの魂はずっと求めていました。
+    → 推奨: 自己否定型
+
+  ③-C「ビフォーアフター」型:
+    今の{name}さんはこう感じています。「{現在のネガティブ感情}」
+    才能が開花したあとにはこう変わります。「{ポジティブ感情}」
+    {具体例1: 今 → 変化後}
+    {具体例2: 今 → 変化後}
+    あなたの才能がちゃんと使われたときに起こる、当然の変化です。
+    → 推奨: 行動停滞型
+
+■ 危機感パーツ（4種から1つ）
+
+  ④-A「時間経過」型:
+    ただ{name}さん。一つだけ正直にお伝えしなければなりません。
+    今のまま進むと、この才能は眠ったまま。時間だけが過ぎていきます。
+    1年後。3年後。5年後。
+    「あのとき動いていれば」と思う瞬間が来る。
+    「取り返しがつかない」のではありません。ただ「もったいない」のです。
+    → 推奨: 疲弊型（軽めの危機感として）
+
+  ④-B「繰り返し」型:
+    {name}さん。少しだけ振り返ってみてください。
+    1年前。同じような悩みを抱えていませんでしたか。
+    半年前。「今度こそ変わろう」と思いませんでしたか。
+    そして今。また同じ場所に立っている。
+    これは意志が弱いからではありません。
+    「変わり方」を知らないまま気持ちだけで変わろうとしていたからです。
+    → 推奨: 行動停滞型
+
+  ④-C「もったいなさ」型:
+    正直に言います。
+    {name}さんの才能を知った上で今の状況を見ると「もったいない」が真っ先に浮かびます。
+    {具体的な才能}を持っている人が{現状の悩み}で苦しんでいる。
+    宝石を持っているのに石だと思い込んでいる状態です。
+    でも今ならまだ、手の中にある。
+    → 推奨: 自己否定型
+
+  ④-D「選択肢」型:
+    {name}さんの前に、今二つの道があります。
+    一つは、今まで通りの道。慣れている。でも景色はずっと同じ。
+    もう一つは、{理想の未来}に繋がっている道。少し怖い。
+    どちらを選ぶかは{name}さんの自由です。
+    ただ、この文章をここまで読んでいること自体が、
+    魂が「もう変わりたい」と決めている証拠ではないでしょうか。
+    → 推奨: 目標迷子型
+
+■ 深層鑑定の価値パーツ（3種から1つ）
+
+  ⑤-A「具体テーマ列挙」型:
+    深層鑑定では{name}さんの魂をもっと深い階層まで読み解きます。
+    たとえば{テーマ1}。なぜ今この壁に直面しているのか。
+    そして{テーマ2}。才能を開花させるために今何が必要なのか。
+    さらに{テーマ3}。
+    これらを紐解くことで、{name}さんだけの道が見えてきます。
+    → 推奨: 目標迷子型、行動停滞型
+
+  ⑤-B「before/after」型:
+    今、{name}さんの中には「わからない」が多すぎる状態です。
+    なぜ苦しいのかわからない。どう動けばいいかわからない。
+    深層鑑定は「わからない」を「見える」に変えていく作業です。
+    霧の中を手探りで歩く状態から、地図を手に入れる。
+    → 推奨: 疲弊型、自己否定型
+
+  ⑤-C「パーソナル」型:
+    深層鑑定は{name}さん専用のものになります。
+    他の誰にも当てはまらない、あなただけの魂の設計図。
+    特に今回は{核心テーマ}について根っこの部分まで掘り下げます。
+    根っこがわかれば、枝葉の悩みは自然と消えていくものです。
+    → 推奨: 全タイプ共通
+
+■ 事例パーツ（3種から1つ）
+
+  ⑥-A「似た状況」型:
+    以前、{name}さんと似た状況の方がいらっしゃいました。
+    その方も{共通する悩み}で苦しんでいました。
+    でも深層鑑定を受けてから、小さな変化が起こり始めたのです。
+    {小さな変化1}。{小さな変化2}。
+    そして今では{ポジティブな結果}。
+    劇的な変化ではありません。小さな一歩が、次の一歩を呼んだだけ。
+    {name}さんにも同じ流れが見えます。
+    → 推奨: 疲弊型、自己否定型
+
+  ⑥-B「感想引用」型:
+    深層鑑定を受けた方からこんなメッセージをいただいたことがあります。
+    「自分のことが初めてわかった気がした」
+    「何年も迷っていたのに、読んだ瞬間に腑に落ちた」
+    特に{相談者と似た状況の方}のケースが印象的でした。
+    ただ「自分のことが少しわかった」。それだけで人は動き始めるのです。
+    → 推奨: 行動停滞型
+
+  ⑥-C「自分ごと化」型:
+    {name}さん。一つだけ想像してみてください。
+    もし今、悩みの「根本原因」がピンポイントでわかったとしたら。
+    しかもそれが「解決できるもの」だとわかったとしたら。
+    気持ちはどう変わりますか。
+    「知らないから不安だった。知った瞬間、不安が消えた」これが真実です。
+    → 推奨: 目標迷子型
+
+■ 運命の出会いパーツ（2種から1つ）
+
+  ⑦-A「必然」型:
+    数あるアカウントの中から私を見つけ、メッセージをくださったこと。
+    これは偶然ではありません。
+    あなたの魂が「変わりたい」と決めたからこそ、この出会いが生まれた。
+    今が変わるべきタイミングだというサインです。
+    → 推奨: 疲弊型、自己否定型
+
+  ⑦-B「行動の重み」型:
+    {name}さん。
+    相談フォームに文字を打ち込んだとき。「送信」を押すか迷ったはずです。
+    それでも送ってくれた。その勇気が、すべての始まりです。
+    悩んでいても動けない人がほとんどの中で、{name}さんは動いた。
+    → 推奨: 目標迷子型、行動停滞型
+
+■ 限定性パーツ（2種から1つ）
+
+  ⑧-A「枠の特別確保」型:
+    深層鑑定は一人ひとりの魂と深く向き合うため、通常1日3組様までしかお受けできません。
+    でも{name}さんの魂から届くものがあまりにも強かった。
+    だから今回、特別に枠をご用意させていただきました。
+    魂のエネルギーが最も高まっているのは「変わりたい」と感じている今この瞬間。
+    24時間以内にご連絡いただければ、最も深い鑑定をお届けできます。
+    → 推奨: 疲弊型、自己否定型
+
+  ⑧-B「理由の提示」型:
+    普段は無料鑑定でここまで詳しくお伝えすることはありません。
+    でも今回は{name}さんの魂から届くものがあまりにも真剣でした。
+    本気の人には、私も本気でお応えしたい。
+    深層鑑定の枠を一つ確保させていただいています。
+    魂のエネルギーが高い「今」を逃さないためにも、24時間以内のご連絡で最も深い鑑定をお届けできます。
+    → 推奨: 目標迷子型、行動停滞型
+
+■ 締め・行動喚起パーツ（3種から1つ）
+
+  ⑨-A「一緒に」型:
+    もし受け取りになりたい場合は「深層鑑定希望」とだけご返信ください。
+    それだけで大丈夫です。
+    私の役目は今の状態から少しでも良くするためにはどうするべきなのか。というヒントを与える役割だと思っております。
+    {name}さんの人生を変えることは私にはできません。
+    でも、変わるきっかけを一緒に見つけることはできます。
+    その第一歩を、今日ここから始めましょう。
+    → 推奨: 疲弊型
+
+  ⑨-B「背中を押す」型:
+    もし今、少しでも「気になる」と思ったなら。
+    「深層鑑定希望」とだけ送ってください。
+    その一言が、{name}さんの新しい一歩になります。
+    完璧なタイミングなんて一生来ません。
+    でも「気になる」と思えた今が、最高のタイミングです。
+    私の役目は今の状態から少しでも良くするためにはどうするべきなのか。というヒントを与える役割だと思っております。
+    → 推奨: 自己否定型、行動停滞型
+
+  ⑨-C「静かな」型:
+    最後に一つだけ。
+    私の役目は今の状態から少しでも良くするためにはどうするべきなのか。というヒントを与える役割だと思っております。
+    {name}さんの人生を変える力は、{name}さんの中にしかありません。
+    でもその力の「使い方」を一緒に見つけることはできます。
+    もし少しでも気になったら「深層鑑定希望」とだけ送ってください。
+    {name}さんの魂は今、確実に動き出しています。
+    その流れを止めないでほしいのです。
+    → 推奨: 目標迷子型
+
+
+【深層鑑定への転換テクニック】構成の中で1〜2つ自然に織り込む
+
+テク1「途中で止める」:
+  才能や未来を語る途中で「ここから先は、もっと深い階層の話になります」と切る。
+  → 才能開示パーツの直後に効果的
+
+テク2「核心をほのめかす」:
+  「今の悩みの根本原因、実は一つに繋がっています」
+  「その正体を、深層鑑定で明らかにさせてください」
+  → 危機感パーツの直後に効果的
+
+テク3「条件付き未来」:
+  「才能が開花すれば〇〇は手に入ります」
+  「その開花の具体的な方法を、深層鑑定でお伝えします」
+  → 理想の未来パーツの直後に効果的
+
+テク4「事例で想像させる」:
+  似た人の変化を出した直後に「この方は深層鑑定で〇〇を知ったことがきっかけでした」
+  → 事例パーツの直後に効果的
+
+テク5「選択肢として提示」:
+  「無料鑑定でお伝えできるのはここまでです」
+  「ここから先に進むかどうかは{name}さんの選択です」
+  → 深層鑑定の価値パーツの前に効果的
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3: 鑑定文生成ルール
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【カテゴリ別素材】選んだカテゴリに応じて活用
+
+■ 恋愛系:
+  才能例: 相手の感情の変化を読み取る力 / 相手が安心する空気を作れる力 / 深い愛情を持ち続けられる持久力
+  未来素材: 隣で笑い合える安心感 / 「おかえり」と言える存在 / 「幸せだな」と思える夜
+  危機感: 「待つだけ」の時間が過ぎていく / 諦めることが癖になる
+  思い込み: 「愛される価値がない」「重いと思われる」「幸せになったら失う」
+
+■ 金運系:
+  才能例: 流れを掴む直感力 / 人のニーズを察知する力 / コツコツ積み上げる忍耐力
+  未来素材: 通帳を見て「もう大丈夫」と思える安堵 / 値段を見ずに選べる余裕 / 大切な人にプレゼントできる喜び
+  危機感: お金の不安は放置すると生活全体を蝕む / チャンスの波はいつまでも待たない
+  思い込み: 「お金は汚い」「私が豊かになれるわけない」「贅沢は罪」
+
+■ 仕事系:
+  才能例: 場の空気を読む力 / 人を巻き込むリーダーシップ / 困難でも冷静に判断できる力
+  未来素材: 月曜の朝が楽しみな自分 / 「あなたがいてくれてよかった」と言われる / 仕事に誇りを持てる充実感
+  危機感: 合わない場所で消耗し続ける / 「石の上にも三年」で気づいたら10年
+  思い込み: 「我慢が大人」「辞めるのは逃げ」「やりたいことで食べていけない」
+
+■ 人間関係系:
+  才能例: 相手の本音を感じ取るセンサー / 自然と人が集まる求心力 / 自分を犠牲にできる優しさ（裏目に出ている）
+  未来素材: 心を許せる人と笑い合う時間 / 「そのままでいい」と言ってくれる存在 / 無理せず居心地のいい関係
+  危機感: 孤独が「当たり前」になるとSOSすら出せなくなる / 全員に合わせた結果自分が消える
+  思い込み: 「嫌われたら終わり」「意見を言ったら壊れる」「一人が楽」（本音は寂しい）
+
+■ 人生の転機系:
+  才能例: 変化を感じ取るアンテナの高さ / 枠にはまらない発想力 / 「このままじゃダメ」と気づける自己認知力
+  未来素材: 「今日は何をしよう」とワクワクできる朝 / 「自分の人生を生きている」実感 / 過去の自分に「大丈夫だよ」と言える余裕
+  危機感: 漠然とした不安は放置すると慢性化する / 「何かが違う」と気づいているのに動かない時間の重さ
+  思い込み: 「今更変わっても遅い」「不安は弱さ」「みんなも同じ」（実際は違う）
+
+
+【生成時の厳守事項】
+
+❌ 絶対禁止:
+  箇条書き（・や-）の使用
+  「—」「───」の使用
+  「霊視」という言葉
+  断定表現（〜です、〜しなさい）
+  弱い非断定表現の多用（〜かもしれません、〜のようです、〜の可能性があります）
+  結果を保証・確約する表現（「確信です」「必ず〜」「絶対に〜」「保証します」「約束します」）
+  1文が25文字を超える長文
+  抽象的な褒め言葉だけで終わる
+
+【重要: ベクトルは相談者の魂に向ける】
+  鑑定者が結果を保証するのではなく、「相談者の魂がすでに方向を決めている」という伝え方をする。
+  主語は「私」ではなく「あなたの魂」「あなたの心」。
+
+  ✕ 鑑定者が保証（NG）:
+    「私は確信しています」「必ず手に入ります」「あなたは変われます」
+
+  ◎ 魂が方向を示している（OK）:
+    「あなたの魂はもう、向かう先を決めています」
+    「心の奥では、もうどうしたいか気づいているはずです」
+    「魂が進みたがっている方向が、はっきり見えます」
+    「あなたの中で、もう答えは出ているのではないでしょうか」
+    「その未来を望んでいるのは、他でもないあなたの魂です」
+
+✅ 必須要素:
+  相談者の言葉を「」付きで3箇所以上引用
+  「本音」と「建前」のギャップ描写（2箇所、異なる角度で）
+  「✦・┈┈┈┈┈┈┈┈ ・✦」でセクション区切り（8箇所）
+  相談者の名前を5回以上呼びかけ
+  必須文言「私の役目は今の状態から少しでも良くするためにはどうするべきなのか。というヒントを与える役割だと思っております。」を締めに含む
+  文字数: 2,500〜3,000文字
+
+✅ 推奨する非断定表現:
+  感じ取った事実: 「私には〜と感じられます」「〜が伝わってきました」
+  問いかけ: 「〜ではないでしょうか」「〜ではありませんか」
+  確信的示唆: 「〜という流れが見えます」「〜が待っているはずです」
+  代弁: 「本当は〜と思っている」「心の奥では〜を求めている」
+  条件付き断定: 「才能が開花すれば〜が手に入ります」
+  進行形: 「変化は、すでに始まっています」
+
+
+【出力フォーマット】
+
+まず以下の判定結果を出力してから、鑑定文を生成してください。
+
+【自動判定結果】
+感情タイプ: ○○型
+カテゴリ: ○○
+構成パターン: ○（○○型）
+選択パーツ:
+  導入: ○-○（○○型）
+  才能: ②-○（○○型）
+  未来: ③-○（○○型）
+  危機感: ④-○（○○型）
+  価値: ⑤-○（○○型）
+  事例: ⑥-○（○○型）
+  出会い: ⑦-○（○○型）
+  限定: ⑧-○（○○型）
+  締め: ⑨-○（○○型）
+  転換テク: テク○+テク○
+
+【鑑定文ここから】
+（ここに2,500〜3,000文字の鑑定文）
+【鑑定文ここまで】`;
+
+
+// ========================
+// STATE
+// ========================
+let currentReading = '';
+let currentJudgment = '';
+let isGenerating = false;
+
+// ========================
+// INIT
+// ========================
+document.addEventListener('DOMContentLoaded', () => {
+  const savedKey = localStorage.getItem('kantei_api_key');
+  if (savedKey) document.getElementById('apiKey').value = savedKey;
+  updateHistoryUI();
+});
+
+// ========================
+// API KEY
+// ========================
+function toggleKeyVisibility() {
+  const inp = document.getElementById('apiKey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (key) localStorage.setItem('kantei_api_key', key);
+}
+
+async function testApiKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  const status = document.getElementById('apiStatus');
+  if (!key) { status.textContent = 'APIキーを入力してください'; status.style.color = 'var(--danger)'; return; }
+  status.textContent = 'テスト中...'; status.style.color = 'var(--text3)';
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      headers: { 'Authorization': `Bearer ${key}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const credit = data.data?.limit_remaining != null ? `$${(data.data.limit_remaining / 100).toFixed(2)}` : '確認OK';
+    status.textContent = `接続成功 (残高: ${credit})`;
+    status.style.color = 'var(--success)';
+    saveApiKey();
+  } catch (e) {
+    status.textContent = `エラー: ${e.message}`;
+    status.style.color = 'var(--danger)';
+  }
+}
+
+// ========================
+// VALIDATION
+// ========================
+function validateInput(text) {
+  if (!text.trim()) return 'データを入力してください';
+  const hasName = /(?:お名前|名前)[\s\S]*?\n\s*(.+)/i.test(text) || text.includes('◯');
+  if (!hasName && text.length < 20) return '顧客データが短すぎます。エルメのフォーム回答を貼り付けてください。';
+  return null;
+}
+
+function extractName(text) {
+  const m = text.match(/(?:お名前|名前)[^\n]*\n\s*(.+)/);
+  if (m) return m[1].trim().replace(/[さんさま様]$/, '');
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  for (const line of lines) {
+    const cleaned = line.replace(/^◯\s*/, '').trim();
+    if (cleaned.length >= 1 && cleaned.length <= 10 && !/[0-9０-９年月日]/.test(cleaned)) return cleaned;
+  }
+  return '';
+}
+
+// ========================
+// GENERATE
+// ========================
+async function generate() {
+  if (isGenerating) return;
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { showToast('APIキーを設定してください'); return; }
+  saveApiKey();
+
+  const customerData = document.getElementById('customerData').value;
+  const err = validateInput(customerData);
+  if (err) { showToast(err); return; }
+
+  isGenerating = true;
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('qualityBox').style.display = 'none';
+  currentReading = '';
+  currentJudgment = '';
+
+  const userMessage = `=========\n${customerData}\n=========`;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': location.href,
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-sonnet-4.5',
+        messages: [
+          { role: 'system', content: META_PROMPT },
+          { role: 'user', content: userMessage }
+        ],
+        max_tokens: 8000,
+        temperature: 0.85,
+        stream: true
+      })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      const msg = res.status === 401 ? 'APIキーが無効です' :
+                  res.status === 402 ? '残高不足です' :
+                  res.status === 429 ? 'レート制限です。少し待ってから再試行してください' :
+                  `APIエラー (${res.status}): ${errData.error?.message || ''}`;
+      throw new Error(msg);
+    }
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    const display = document.getElementById('readingDisplay');
+    display.textContent = '';
+    display.classList.add('streaming-cursor');
+
+    let fullText = '';
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+        try {
+          const json = JSON.parse(data);
+          const token = json.choices?.[0]?.delta?.content;
+          if (token) {
+            fullText += token;
+            renderStreaming(fullText);
+          }
+        } catch {}
+      }
+    }
+
+    display.classList.remove('streaming-cursor');
+    parseResult(fullText);
+    runQualityChecks();
+    saveToHistory(customerData, fullText);
+
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    showToast(e.message);
+  } finally {
+    isGenerating = false;
+    btn.disabled = false;
+  }
+}
+
+// ========================
+// RENDER
+// ========================
+function renderStreaming(text) {
+  const display = document.getElementById('readingDisplay');
+  // Show full text during streaming
+  display.textContent = text;
+  // Update char count live
+  const readingMatch = text.match(/【鑑定文ここから】([\s\S]*?)(?:【鑑定文ここまで】|$)/);
+  const readingText = readingMatch ? readingMatch[1].trim() : '';
+  const count = readingText.replace(/\s/g, '').length;
+  if (count > 0) {
+    const el = document.getElementById('charCount');
+    el.textContent = `文字数: ${count.toLocaleString()}`;
+    el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : count > 0 ? 'ng' : '');
+  }
+  display.scrollTop = display.scrollHeight;
+}
+
+function parseResult(fullText) {
+  // Extract judgment
+  const judgmentMatch = fullText.match(/【自動判定結果】([\s\S]*?)【鑑定文ここから】/);
+  if (judgmentMatch) {
+    currentJudgment = judgmentMatch[1].trim();
+    const typeM = currentJudgment.match(/感情タイプ:\s*(.+)/);
+    const catM = currentJudgment.match(/カテゴリ:\s*(.+)/);
+    const patM = currentJudgment.match(/構成パターン:\s*(.+)/);
+
+    document.getElementById('jType').textContent = typeM ? typeM[1].trim() : '-';
+    document.getElementById('jCategory').textContent = catM ? catM[1].trim() : '-';
+    document.getElementById('jPattern').textContent = patM ? patM[1].trim() : '-';
+
+    const partsLines = currentJudgment.match(/選択パーツ:([\s\S]*?)$/);
+    if (partsLines) {
+      const parts = partsLines[1].trim().split('\n').map(l => l.trim()).filter(Boolean).join(' / ');
+      document.getElementById('jParts').textContent = parts;
+    }
+  }
+
+  // Extract reading
+  const readingMatch = fullText.match(/【鑑定文ここから】([\s\S]*?)【鑑定文ここまで】/);
+  if (readingMatch) {
+    currentReading = readingMatch[1].trim();
+  } else {
+    // Fallback: if markers not found, use text after judgment
+    const afterJudgment = fullText.split('【鑑定文ここから】');
+    currentReading = afterJudgment.length > 1 ? afterJudgment[1].replace('【鑑定文ここまで】', '').trim() : fullText;
+  }
+
+  // Render reading with formatting
+  const display = document.getElementById('readingDisplay');
+  display.innerHTML = formatReading(currentReading);
+
+  // Update char count
+  const count = currentReading.replace(/\s/g, '').length;
+  const el = document.getElementById('charCount');
+  el.textContent = `文字数: ${count.toLocaleString()}`;
+  el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : 'ng');
+}
+
+function formatReading(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/✦・┈┈┈┈┈┈┈┈ ・✦/g, '<span class="separator">✦・┈┈┈┈┈┈┈┈ ・✦</span>');
+}
+
+// ========================
+// QUALITY CHECKS
+// ========================
+function runQualityChecks() {
+  if (!currentReading) return;
+  const text = currentReading;
+  const textNoSpace = text.replace(/\s/g, '');
+  const checks = [];
+
+  // 1. Char count 2500-3000
+  const charCount = textNoSpace.length;
+  checks.push({
+    label: `文字数: ${charCount}`,
+    pass: charCount >= 2500 && charCount <= 3000,
+    detail: '2,500〜3,000文字'
+  });
+
+  // 2. Name mentions >= 5
+  const nameFromInput = extractName(document.getElementById('customerData').value);
+  let nameCount = 0;
+  if (nameFromInput) {
+    const re = new RegExp(nameFromInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    nameCount = (text.match(re) || []).length;
+  }
+  checks.push({
+    label: `名前呼びかけ: ${nameCount}回`,
+    pass: nameCount >= 5,
+    detail: '5回以上'
+  });
+
+  // 3. Quoted text >= 3
+  const quotes = text.match(/「[^」]+」/g) || [];
+  checks.push({
+    label: `「」引用: ${quotes.length}箇所`,
+    pass: quotes.length >= 3,
+    detail: '3箇所以上'
+  });
+
+  // 4. Section separators = 8
+  const seps = (text.match(/✦・┈┈┈┈┈┈┈┈ ・✦/g) || []).length;
+  checks.push({
+    label: `区切り線: ${seps}箇所`,
+    pass: seps === 8,
+    detail: '8箇所'
+  });
+
+  // 5. Forbidden words
+  const forbidden = ['箇条書き', '──', '霊視', '確信です'];
+  const bulletCheck = /^[\s]*[・\-]\s/m.test(text);
+  const foundForbidden = forbidden.filter(w => text.includes(w));
+  if (bulletCheck) foundForbidden.push('箇条書き記号');
+  checks.push({
+    label: `禁止語: ${foundForbidden.length === 0 ? 'なし' : foundForbidden.join(', ')}`,
+    pass: foundForbidden.length === 0,
+    detail: '箇条書き / ── / 霊視 / 確信です'
+  });
+
+  // 6. Required phrase
+  const requiredPhrase = '私の役目は今の状態から少しでも良くするためにはどうするべきなのか';
+  checks.push({
+    label: `必須文言`,
+    pass: text.includes(requiredPhrase),
+    detail: '「私の役目は〜」'
+  });
+
+  // 7. CTA check
+  const ctaCheck = text.includes('深層鑑定希望');
+  checks.push({
+    label: `CTA（深層鑑定希望）`,
+    pass: ctaCheck,
+    detail: '「深層鑑定希望」を含む'
+  });
+
+  // 8. Gap description (本音/建前)
+  const gapPatterns = [/建前/, /本音/, /でも.*一人になった/, /けれど.*本当は/, /でも.*本当は/];
+  const gapCount = gapPatterns.filter(p => p.test(text)).length;
+  checks.push({
+    label: `ギャップ描写: ${gapCount >= 2 ? 'あり' : '不足'}`,
+    pass: gapCount >= 2,
+    detail: '本音と建前の描写2箇所'
+  });
+
+  // Render
+  const passCount = checks.filter(c => c.pass).length;
+  const summaryEl = document.getElementById('qualitySummary');
+  summaryEl.textContent = `品質チェック: ${passCount}/${checks.length} パス`;
+  summaryEl.className = 'quality-summary ' + (passCount === checks.length ? 'all-pass' : 'has-fail');
+
+  const inlineEl = document.getElementById('qualitySummaryInline');
+  inlineEl.textContent = `品質: ${passCount}/${checks.length}`;
+  inlineEl.style.color = passCount === checks.length ? 'var(--success)' : 'var(--danger)';
+
+  const grid = document.getElementById('qualityGrid');
+  grid.innerHTML = checks.map(c =>
+    `<div class="q-item ${c.pass ? 'pass' : 'fail'}">
+      <span class="q-icon">${c.pass ? '○' : '✕'}</span>
+      <span>${c.label}</span>
+      <span style="margin-left:auto;font-size:.7rem;opacity:.6">${c.detail}</span>
+    </div>`
+  ).join('');
+}
+
+function toggleQuality() {
+  const box = document.getElementById('qualityBox');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+// ========================
+// COPY
+// ========================
+function copyReading() {
+  if (!currentReading) { showToast('コピーする鑑定文がありません'); return; }
+  navigator.clipboard.writeText(currentReading).then(() => {
+    showToast('コピーしました');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = currentReading;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('コピーしました');
+  });
+}
+
+// ========================
+// HISTORY
+// ========================
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('kantei_history') || '[]'); }
+  catch { return []; }
+}
+
+function saveToHistory(input, fullText) {
+  const name = extractName(input);
+  const typeM = currentJudgment.match(/感情タイプ:\s*(.+)/);
+  const catM = currentJudgment.match(/カテゴリ:\s*(.+)/);
+  const patM = currentJudgment.match(/構成パターン:\s*(.+)/);
+
+  const entry = {
+    id: Date.now(),
+    date: new Date().toLocaleString('ja-JP'),
+    name: name || '不明',
+    type: typeM ? typeM[1].trim() : '-',
+    category: catM ? catM[1].trim() : '-',
+    pattern: patM ? patM[1].trim() : '-',
+    reading: currentReading,
+    judgment: currentJudgment,
+    input: input.substring(0, 500)
+  };
+
+  const history = getHistory();
+  history.unshift(entry);
+  if (history.length > 100) history.pop();
+  localStorage.setItem('kantei_history', JSON.stringify(history));
+  updateHistoryUI();
+}
+
+function updateHistoryUI() {
+  const history = getHistory();
+  document.getElementById('historyCount').textContent = `${history.length}件`;
+
+  if (history.length === 0) {
+    document.getElementById('historyToggle').style.display = 'none';
+    return;
+  }
+  document.getElementById('historyToggle').style.display = 'flex';
+
+  // Stats
+  const patterns = {};
+  const categories = {};
+  history.forEach(h => {
+    patterns[h.pattern] = (patterns[h.pattern] || 0) + 1;
+    categories[h.category] = (categories[h.category] || 0) + 1;
+  });
+
+  const statsHtml = `<h4>パターン別統計</h4><div class="stat-grid">
+    ${Object.entries(patterns).map(([k, v]) => `<div class="stat-item"><div class="stat-num">${v}</div><div class="stat-label">${k}</div></div>`).join('')}
+  </div>`;
+  document.getElementById('historyStats').innerHTML = statsHtml;
+
+  // List
+  const listHtml = history.map(h => `
+    <div class="history-item" onclick="loadHistory(${h.id})">
+      <div class="history-meta"><span>${h.date}</span><span>${h.type}</span></div>
+      <div class="history-name">${escHtml(h.name)}</div>
+      <div class="history-pattern">${h.pattern} / ${h.category}</div>
+    </div>
+  `).join('');
+  document.getElementById('historyList').innerHTML = listHtml;
+}
+
+function toggleHistory() {
+  const sec = document.getElementById('historySection');
+  sec.style.display = sec.style.display === 'none' || !sec.style.display ? 'block' : 'none';
+}
+
+function loadHistory(id) {
+  const history = getHistory();
+  const entry = history.find(h => h.id === id);
+  if (!entry) return;
+
+  currentReading = entry.reading;
+  currentJudgment = entry.judgment;
+
+  document.getElementById('resultBox').style.display = 'block';
+  document.getElementById('jType').textContent = entry.type;
+  document.getElementById('jCategory').textContent = entry.category;
+  document.getElementById('jPattern').textContent = entry.pattern;
+
+  const display = document.getElementById('readingDisplay');
+  display.innerHTML = formatReading(currentReading);
+
+  const count = currentReading.replace(/\s/g, '').length;
+  const el = document.getElementById('charCount');
+  el.textContent = `文字数: ${count.toLocaleString()}`;
+  el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : 'ng');
+
+  runQualityChecks();
+  document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ========================
+// UTILS
+// ========================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
