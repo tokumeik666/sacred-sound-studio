@@ -50,10 +50,14 @@ textarea::placeholder{color:var(--text3)}
 
 /* Result */
 .result-box{display:none}
-.judgment-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.judgment-item{background:var(--bg);border-radius:8px;padding:10px 14px}
-.judgment-label{font-size:.7rem;color:var(--text3);margin-bottom:2px}
-.judgment-value{font-size:.9rem;color:var(--gold)}
+
+/* Analysis memo */
+.analysis-details{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.analysis-toggle{padding:14px 20px;cursor:pointer;font-size:.85rem;color:var(--text3);list-style:none;display:flex;align-items:center;gap:8px}
+.analysis-toggle::-webkit-details-marker{display:none}
+.analysis-toggle::before{content:'>';font-size:.75rem;transition:transform .2s;display:inline-block}
+details[open] .analysis-toggle::before{transform:rotate(90deg)}
+.analysis-content{padding:0 20px 16px;font-size:.82rem;color:var(--text2);line-height:1.8;white-space:pre-wrap;word-wrap:break-word}
 
 /* Reading display */
 .reading-display{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:20px;min-height:200px;white-space:pre-wrap;word-wrap:break-word;font-size:.92rem;line-height:1.9;color:var(--text)}
@@ -76,8 +80,11 @@ textarea::placeholder{color:var(--text3)}
 .quality-summary.all-pass{color:var(--success)}
 .quality-summary.has-fail{color:var(--danger)}
 
+/* Copy main button */
+.copy-main{width:100%;margin-top:16px;font-size:1.05rem;padding:16px}
+
 /* Action buttons */
-.action-buttons{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.action-buttons{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 
 /* History */
 .history-section{display:none}
@@ -157,47 +164,32 @@ textarea::placeholder{color:var(--text3)}
 
   <!-- Result Section -->
   <div class="result-box" id="resultBox">
-    <div class="section">
-      <div class="section-title">自動判定結果</div>
-      <div class="judgment-grid">
-        <div class="judgment-item">
-          <div class="judgment-label">感情タイプ</div>
-          <div class="judgment-value" id="jType">-</div>
-        </div>
-        <div class="judgment-item">
-          <div class="judgment-label">カテゴリ</div>
-          <div class="judgment-value" id="jCategory">-</div>
-        </div>
-        <div class="judgment-item">
-          <div class="judgment-label">構成パターン</div>
-          <div class="judgment-value" id="jPattern">-</div>
-        </div>
-        <div class="judgment-item">
-          <div class="judgment-label">選択パーツ</div>
-          <div class="judgment-value" id="jParts" style="font-size:.75rem;line-height:1.5">-</div>
-        </div>
-      </div>
-    </div>
+    <!-- Analysis Memo (collapsible) -->
+    <details class="analysis-details" id="analysisBox">
+      <summary class="analysis-toggle">分析メモを見る</summary>
+      <div class="analysis-content" id="analysisContent"></div>
+    </details>
 
     <div class="section">
-      <div class="section-title">鑑定文プレビュー</div>
       <div class="reading-display" id="readingDisplay"></div>
       <div class="status-bar">
         <span class="char-count" id="charCount">文字数: -</span>
         <span id="qualitySummaryInline" style="font-size:.8rem"></span>
       </div>
 
+      <!-- Copy Button (primary) -->
+      <button class="btn btn-primary copy-main" id="copyBtn" onclick="copyReading()">コピーする</button>
+
+      <!-- Sub Actions -->
+      <div class="action-buttons">
+        <button class="btn" onclick="generate()">再生成</button>
+        <button class="btn btn-sm" onclick="toggleQuality()">品質チェック</button>
+      </div>
+
       <!-- Quality Checks -->
       <div class="quality-box" id="qualityBox">
         <div class="quality-summary" id="qualitySummary"></div>
         <div class="quality-grid" id="qualityGrid"></div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <button class="btn btn-copy" onclick="copyReading()">コピー</button>
-        <button class="btn" onclick="generate()">再生成</button>
-        <button class="btn btn-sm" onclick="toggleQuality()">品質チェック詳細</button>
       </div>
     </div>
   </div>
@@ -915,27 +907,18 @@ STEP 3: 鑑定文生成ルール
 
 【出力フォーマット】
 
-まず以下の判定結果を出力してから、鑑定文を生成してください。
+以下の2ブロックに分けて出力すること。
 
-【自動判定結果】
-感情タイプ: ○○型
-カテゴリ: ○○
-構成パターン: ○（○○型）
-選択パーツ:
-  導入: ○-○（○○型）
-  才能: ②-○（○○型）
-  未来: ③-○（○○型）
-  危機感: ④-○（○○型）
-  価値: ⑤-○（○○型）
-  事例: ⑥-○（○○型）
-  出会い: ⑦-○（○○型）
-  限定: ⑧-○（○○型）
-  締め: ⑨-○（○○型）
-  転換テク: テク○+テク○
+【分析メモ】
+・感情タイプ: ○○型（判定理由を1〜2文で）
+・カテゴリ: ○○（なぜこのカテゴリか1〜2文で）
+・構成パターン: ○（○○型）
+・方向性: この相談者にどういうアプローチで刺すか、なぜその組み合わせを選んだかを3〜5文で説明
+・選択パーツ: 導入○-○ / 才能②-○ / 未来③-○ / 危機感④-○ / 価値⑤-○ / 事例⑥-○ / 出会い⑦-○ / 限定⑧-○ / 締め⑨-○ / 転換テク○+○
 
-【鑑定文ここから】
-（ここに2,500〜3,000文字の鑑定文）
-【鑑定文ここまで】`;
+---kantei---
+
+（ここに鑑定文本文のみ。2,500〜3,000文字。マーカー不要。）`;
 
 
 // ========================
@@ -1099,55 +1082,52 @@ async function generate() {
 // ========================
 function renderStreaming(text) {
   const display = document.getElementById('readingDisplay');
-  // Show full text during streaming
-  display.textContent = text;
-  // Update char count live
-  const readingMatch = text.match(/【鑑定文ここから】([\s\S]*?)(?:【鑑定文ここまで】|$)/);
-  const readingText = readingMatch ? readingMatch[1].trim() : '';
-  const count = readingText.replace(/\s/g, '').length;
-  if (count > 0) {
+  // During streaming, show only the reading part (after separator)
+  const parts = text.split('---kantei---');
+  const readingPart = parts.length > 1 ? parts[1].trimStart() : '';
+  const analysisPart = parts.length > 1 ? parts[0] : '';
+
+  if (readingPart) {
+    display.textContent = readingPart;
+    const count = readingPart.replace(/\s/g, '').length;
     const el = document.getElementById('charCount');
     el.textContent = `文字数: ${count.toLocaleString()}`;
     el.className = 'char-count ' + (count >= 2500 && count <= 3000 ? 'ok' : count > 0 ? 'ng' : '');
+  } else {
+    // Still in analysis phase - show waiting indicator
+    display.textContent = '分析中...';
   }
+
+  // Update analysis memo live
+  if (analysisPart) {
+    const clean = analysisPart.replace(/【分析メモ】\s*/, '').trim();
+    document.getElementById('analysisContent').textContent = clean;
+  }
+
   display.scrollTop = display.scrollHeight;
 }
 
 function parseResult(fullText) {
-  // Extract judgment
-  const judgmentMatch = fullText.match(/【自動判定結果】([\s\S]*?)【鑑定文ここから】/);
-  if (judgmentMatch) {
-    currentJudgment = judgmentMatch[1].trim();
-    const typeM = currentJudgment.match(/感情タイプ:\s*(.+)/);
-    const catM = currentJudgment.match(/カテゴリ:\s*(.+)/);
-    const patM = currentJudgment.match(/構成パターン:\s*(.+)/);
-
-    document.getElementById('jType').textContent = typeM ? typeM[1].trim() : '-';
-    document.getElementById('jCategory').textContent = catM ? catM[1].trim() : '-';
-    document.getElementById('jPattern').textContent = patM ? patM[1].trim() : '-';
-
-    const partsLines = currentJudgment.match(/選択パーツ:([\s\S]*?)$/);
-    if (partsLines) {
-      const parts = partsLines[1].trim().split('\n').map(l => l.trim()).filter(Boolean).join(' / ');
-      document.getElementById('jParts').textContent = parts;
-    }
-  }
-
-  // Extract reading
-  const readingMatch = fullText.match(/【鑑定文ここから】([\s\S]*?)【鑑定文ここまで】/);
-  if (readingMatch) {
-    currentReading = readingMatch[1].trim();
+  const parts = fullText.split('---kantei---');
+  if (parts.length > 1) {
+    currentJudgment = parts[0].replace(/【分析メモ】\s*/, '').trim();
+    currentReading = parts[1].trim();
   } else {
-    // Fallback: if markers not found, use text after judgment
-    const afterJudgment = fullText.split('【鑑定文ここから】');
-    currentReading = afterJudgment.length > 1 ? afterJudgment[1].replace('【鑑定文ここまで】', '').trim() : fullText;
+    currentJudgment = '';
+    currentReading = fullText.trim();
   }
 
-  // Render reading with formatting
+  // Show analysis
+  if (currentJudgment) {
+    document.getElementById('analysisContent').textContent = currentJudgment;
+    document.getElementById('analysisBox').style.display = '';
+  } else {
+    document.getElementById('analysisBox').style.display = 'none';
+  }
+
+  // Show reading
   const display = document.getElementById('readingDisplay');
   display.innerHTML = formatReading(currentReading);
-
-  // Update char count
   const count = currentReading.replace(/\s/g, '').length;
   const el = document.getElementById('charCount');
   el.textContent = `文字数: ${count.toLocaleString()}`;
@@ -1296,9 +1276,10 @@ function getHistory() {
 
 function saveToHistory(input, fullText) {
   const name = extractName(input);
-  const typeM = currentJudgment.match(/感情タイプ:\s*(.+)/);
-  const catM = currentJudgment.match(/カテゴリ:\s*(.+)/);
-  const patM = currentJudgment.match(/構成パターン:\s*(.+)/);
+  const j = currentJudgment;
+  const typeM = j.match(/感情タイプ:\s*(.+)/);
+  const catM = j.match(/カテゴリ:\s*(.+)/);
+  const patM = j.match(/構成パターン:\s*(.+)/);
 
   const entry = {
     id: Date.now(),
@@ -1364,12 +1345,17 @@ function loadHistory(id) {
   if (!entry) return;
 
   currentReading = entry.reading;
-  currentJudgment = entry.judgment;
+  currentJudgment = entry.judgment || '';
 
   document.getElementById('resultBox').style.display = 'block';
-  document.getElementById('jType').textContent = entry.type;
-  document.getElementById('jCategory').textContent = entry.category;
-  document.getElementById('jPattern').textContent = entry.pattern;
+
+  // Analysis memo
+  if (currentJudgment) {
+    document.getElementById('analysisContent').textContent = currentJudgment;
+    document.getElementById('analysisBox').style.display = '';
+  } else {
+    document.getElementById('analysisBox').style.display = 'none';
+  }
 
   const display = document.getElementById('readingDisplay');
   display.innerHTML = formatReading(currentReading);
