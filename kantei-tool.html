@@ -26,12 +26,6 @@ a{color:var(--gold)}
 .section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
 .section-title{font-size:.85rem;color:var(--gold-dim);margin-bottom:12px;font-weight:600;letter-spacing:.05em}
 
-/* API Key */
-.api-row{display:flex;gap:8px;align-items:center}
-.api-row input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border .2s}
-.api-row input:focus{border-color:var(--gold-dim)}
-.api-row button{white-space:nowrap}
-
 /* Buttons */
 .btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text2);font-size:.85rem;cursor:pointer;transition:all .2s}
 .btn:hover{border-color:var(--gold-dim);color:var(--gold)}
@@ -138,16 +132,7 @@ textarea::placeholder{color:var(--text3)}
 
 <div class="container">
 
-  <!-- API Key Section -->
-  <div class="section">
-    <div class="section-title">API設定</div>
-    <div class="api-row">
-      <input type="password" id="apiKey" placeholder="OpenRouter APIキーを入力">
-      <button class="btn btn-sm" onclick="toggleKeyVisibility()">表示</button>
-      <button class="btn btn-sm" onclick="testApiKey()">テスト</button>
-    </div>
-    <div id="apiStatus" style="font-size:.75rem;margin-top:6px;color:var(--text3)"></div>
-  </div>
+  <!-- API Key (embedded) -->
 
   <!-- Input Section -->
   <div class="section">
@@ -959,34 +944,21 @@ STEP 3: 鑑定文生成ルール
 let currentReading = '';
 let currentJudgment = '';
 let isGenerating = false;
+const EMBEDDED_API_KEY = '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';
 
 // ========================
 // INIT
 // ========================
 document.addEventListener('DOMContentLoaded', () => {
-  const savedKey = localStorage.getItem('kantei_api_key');
-  if (savedKey) document.getElementById('apiKey').value = savedKey;
   updateHistoryUI();
 });
 
 // ========================
-// API KEY
+// API KEY (unused - embedded)
 // ========================
-function toggleKeyVisibility() {
-  const inp = document.getElementById('apiKey');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-function saveApiKey() {
-  const key = document.getElementById('apiKey').value.trim();
-  if (key) localStorage.setItem('kantei_api_key', key);
-}
-
 async function testApiKey() {
-  const key = document.getElementById('apiKey').value.trim();
-  const status = document.getElementById('apiStatus');
-  if (!key) { status.textContent = 'APIキーを入力してください'; status.style.color = 'var(--danger)'; return; }
-  status.textContent = 'テスト中...'; status.style.color = 'var(--text3)';
+  const key = EMBEDDED_API_KEY;
+  const status = { textContent: '', style: {} };
   try {
     const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
       headers: { 'Authorization': `Bearer ${key}` }
@@ -1029,9 +1001,7 @@ function extractName(text) {
 // ========================
 async function generate() {
   if (isGenerating) return;
-  const apiKey = document.getElementById('apiKey').value.trim();
-  if (!apiKey) { showToast('APIキーを設定してください'); return; }
-  saveApiKey();
+  const apiKey = EMBEDDED_API_KEY;
 
   const customerData = document.getElementById('customerData').value;
   const err = validateInput(customerData);
