@@ -142,7 +142,16 @@ details[open] .analysis-toggle::before{transform:rotate(90deg)}
 
 <div class="container">
 
-  <!-- API Key (embedded) -->
+  <!-- API Key Section -->
+  <div class="section" id="apiKeySection">
+    <div class="section-title">API設定</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="password" id="apiKeyInput" placeholder="OpenRouter APIキーを入力" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.85rem;outline:none">
+      <button class="btn btn-sm" onclick="toggleKeyVisibility()">表示</button>
+      <button class="btn btn-sm" onclick="saveApiKey()">保存</button>
+    </div>
+    <div id="apiKeyStatus" style="font-size:.75rem;margin-top:6px;color:var(--text3)"></div>
+  </div>
 
   <!-- Input Section -->
   <div class="section">
@@ -930,35 +939,44 @@ STEP 3: 鑑定文生成ルール
 let currentReading = '';
 let currentJudgment = '';
 let isGenerating = false;
-const EMBEDDED_API_KEY = ''; // APIキーは設定欄から入力してください
 
 // ========================
 // INIT
 // ========================
 document.addEventListener('DOMContentLoaded', () => {
+  loadApiKey();
   updateHistoryUI();
 });
 
 // ========================
-// API KEY (unused - embedded)
+// API KEY
 // ========================
-async function testApiKey() {
-  const key = EMBEDDED_API_KEY;
-  const status = { textContent: '', style: {} };
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
-      headers: { 'Authorization': `Bearer ${key}` }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const credit = data.data?.limit_remaining != null ? `$${(data.data.limit_remaining / 100).toFixed(2)}` : '確認OK';
-    status.textContent = `接続成功 (残高: ${credit})`;
-    status.style.color = 'var(--success)';
-    saveApiKey();
-  } catch (e) {
-    status.textContent = `エラー: ${e.message}`;
-    status.style.color = 'var(--danger)';
+function getApiKey() {
+  return document.getElementById('apiKeyInput').value.trim();
+}
+
+function saveApiKey() {
+  const key = getApiKey();
+  if (!key) { showToast('APIキーを入力してください'); return; }
+  localStorage.setItem('kantei_api_key', key);
+  const status = document.getElementById('apiKeyStatus');
+  status.textContent = '保存しました';
+  status.style.color = 'var(--success)';
+  setTimeout(() => { status.textContent = ''; }, 2000);
+}
+
+function loadApiKey() {
+  const saved = localStorage.getItem('kantei_api_key');
+  if (saved) {
+    document.getElementById('apiKeyInput').value = saved;
+    document.getElementById('apiKeyStatus').textContent = '保存済みのキーを読み込みました';
+    document.getElementById('apiKeyStatus').style.color = 'var(--text3)';
   }
+}
+
+function toggleKeyVisibility() {
+  const input = document.getElementById('apiKeyInput');
+  input.type = input.type === 'password' ? 'text' : 'password';
 }
 
 // ========================
@@ -987,7 +1005,8 @@ function extractName(text) {
 // ========================
 async function generate() {
   if (isGenerating) return;
-  const apiKey = EMBEDDED_API_KEY;
+  const apiKey = getApiKey();
+  if (!apiKey) { showToast('APIキーを入力して保存してください'); return; }
 
   const customerData = document.getElementById('customerData').value;
   const err = validateInput(customerData);
